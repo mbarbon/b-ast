@@ -1,0 +1,187 @@
+%module{B::AST};
+
+#include "ast_terms.h"
+#include "xsp_typedefs.h"
+
+class B::AST::Term {
+    ast_term_type get_type() const;
+    std::vector<B::AST::Term *> get_kids()
+        %code{% PERL_UNUSED_VAR(THIS); %};
+    ast_op_context context();
+};
+
+class B::AST::Empty : public B::AST::Term {
+};
+
+class B::AST::List : public B::AST::Term {
+    std::vector<B::AST::Term *> kids %get;
+};
+
+class B::AST::Op : public B::AST::Term {
+    std::vector<B::AST::Term *> kids %get;
+
+    ast_op_type get_op_type() const;
+    const char * name() const;
+    ast_op_class op_class() const;
+    bool is_integer_variant() const;
+
+    bool evaluates_kids_conditionally() const
+        %code{% RETVAL = THIS->flags() & B_ASTf_KIDS_CONDITIONAL; %};
+
+    bool kids_are_optional() const
+        %code{% RETVAL = THIS->flags() & B_ASTf_KIDS_OPTIONAL; %};
+
+    bool may_have_explicit_overload() const
+        %code{% RETVAL = THIS->flags() & B_ASTf_OVERLOAD; %};
+};
+
+class B::AST::Baseop : public B::AST::Op {
+};
+
+class B::AST::Unop : public B::AST::Op {
+    B::AST::Term *get_kid() %code{% RETVAL = THIS->kids[0]; %};
+};
+
+class B::AST::Binop : public B::AST::Op {
+    bool is_assignment_form();
+    bool is_synthesized_assignment();
+
+    B::AST::Term *get_left_kid() %code{% RETVAL = THIS->kids[0]; %};
+    B::AST::Term *get_right_kid() %code{% RETVAL = THIS->kids[1]; %};
+};
+
+class B::AST::Listop : public B::AST::Op {
+};
+
+class B::AST::Block : public B::AST::Op {
+};
+
+class B::AST::BareBlock : public B::AST::Term {
+    B::AST::Term *get_body() const;
+    B::AST::Term *get_continuation() const;
+
+    std::vector<B::AST::Term *> get_kids();
+};
+
+class B::AST::While : public B::AST::Term {
+    B::AST::Term *condition %get;
+    bool negated %get;
+    bool evaluate_after %get;
+    B::AST::Term *body %get;
+    B::AST::Term *continuation %get;
+
+    std::vector<B::AST::Term *> get_kids();
+};
+
+class B::AST::For : public B::AST::Term {
+    B::AST::Term *init %get;
+    B::AST::Term *condition %get;
+    B::AST::Term *step %get;
+    B::AST::Term *body %get;
+
+    std::vector<B::AST::Term *> get_kids();
+};
+
+class B::AST::Foreach : public B::AST::Term {
+    B::AST::Term *iterator %get;
+    B::AST::Term *expression %get;
+    B::AST::Term *body %get;
+    B::AST::Term *continuation %get;
+
+    std::vector<B::AST::Term *> get_kids();
+};
+
+class B::AST::ListTransformation : public B::AST::Term {
+    B::AST::Term *body %get;
+    B::AST::List *parameters %get;
+
+    std::vector<B::AST::Term *> get_kids();
+};
+
+class B::AST::Grep : public B::AST::ListTransformation {
+};
+
+class B::AST::Map : public B::AST::ListTransformation {
+};
+
+class B::AST::Constant : public B::AST::Term {
+};
+
+class B::AST::IVConstant : public B::AST::Constant {
+    IV integer_value %get %set;
+};
+
+class B::AST::UVConstant : public B::AST::Constant {
+    UV unsigned_value %get %set;
+};
+
+class B::AST::NVConstant : public B::AST::Constant {
+    NV floating_value %get %set;
+};
+
+class B::AST::StringConstant : public B::AST::Constant {
+    std::string string_value %get %set;
+    bool is_utf8 %get %set;
+};
+
+class B::AST::UndefConstant : public B::AST::Constant {
+};
+
+class B::AST::Identifier : public B::AST::Term {
+};
+
+class B::AST::VariableDeclaration : public B::AST::Identifier {
+    std::string name %get;
+    ast_variable_sigil sigil %get;
+    int get_pad_index() const;
+};
+
+class B::AST::Lexical : public B::AST::Identifier {
+    B::AST::VariableDeclaration *declaration %get;
+    std::string get_name() const;
+    ast_variable_sigil get_sigil() const;
+    int get_pad_index();
+};
+
+class B::AST::Global : public B::AST::Identifier {
+    std::string name %get;
+    ast_variable_sigil sigil %get;
+};
+
+class B::AST::SubCall : public B::AST::Term {
+    B::AST::Term *get_cv_source();
+    std::vector<B::AST::Term *> get_arguments();
+};
+
+class B::AST::MethodCall : public B::AST::SubCall {
+    B::AST::Term *get_invocant();
+};
+
+class B::AST::Optree : public B::AST::Term {
+};
+
+class B::AST::NullOptree : public B::AST::Term {
+};
+
+class B::AST::Statement : public B::AST::Term {
+    std::vector<B::AST::Term *> kids %get;
+    std::string file %get;
+    UV line %get;
+
+    B::AST::Term *get_kid() %code{% RETVAL = THIS->kids[0]; %};
+};
+
+class B::AST::StatementSequence : public B::AST::Term {
+    std::vector<B::AST::Term *> kids %get;
+};
+
+class B::AST::LoopControlStatement : public B::AST::Unop {
+    B::AST::Term *get_jump_target() const;
+    int get_loop_ctl_type() const;
+    std::string get_label() const;
+    bool has_label() const;
+    bool label_is_dynamic() const;
+    bool label_is_utf8() const;
+    std::vector<B::AST::Term *> get_kids()
+        %code{% PERL_UNUSED_VAR(THIS); %};
+};

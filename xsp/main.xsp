@@ -1,0 +1,17 @@
+#include "EXTERN.h"
+#include "perl.h"
+#include "XSUB.h"
+
+#include "ppport.h"
+
+/* Global state and initialization routines */
+#include "export_constants.h"
+
+%{
+
+MODULE = B::AST	PACKAGE = B::AST
+
+BOOT:
+    ast_define_constants(aTHX);
+
+%}

@@ -1,0 +1,340 @@
+# AST op definitions, one per line. "C flags" is the actual C flags written to
+# the output file for runtime properties. "options" contols generation behaviour.
+# Use | chars to separate flags and options.
+# The "AST_ASTf_" prefix of flags is added automatically, so use "KIDS_OPTIONAL"
+# instead of the longer "AST_ASTf_KIDS_OPTIONAL".
+
+# Options:
+# - emit => actually emit as code to include for main OP switch in src/ast_optree.c
+# - nonroot => don't build AST for this OP if it's at the root of a potential AST
+# - declareonly => never build AST for this OP
+
+# Alas, the order is important. Keep unops/binops/listops together, please.
+
+# Special: Additional valid OPs for the filter macro.
+# - OP_SCHOP is the single-parameter version of OP_CHOP. Treat it as the same
+#   thing in the AST. Ditto for OP_SCHOMP.
+#! jittable_root_ops=OP_SCHOP OP_SCHOMP OP_ANDASSIGN OP_ORASSIGN OP_DORASSIGN OP_LEAVE OP_LEAVELOOP OP_PADSV OP_PADAV OP_PADHV
+#! jittable_root_ops=OP_I_MULTIPLY OP_I_DIVIDE OP_I_ADD OP_I_SUBTRACT OP_I_PREINC OP_I_PREDEC OP_I_POSTINC OP_I_POSTDEC OP_I_MODULO OP_I_NEGATE
+#! jittable_root_ops=OP_I_LT OP_I_GT OP_I_LE OP_I_GE OP_I_EQ OP_I_NE OP_I_NCMP
+#! jittable_root_ops=OP_MAPWHILE OP_GREPWHILE OP_ENTERSUB
+#
+#! jittable_ops=OP_CONST OP_NULL OP_GVSV OP_AELEMFAST OP_AELEMFAST_LEX OP_GV
+
+# Return types below are separated between Scalar and List context (Context=Type)
+# and in the absence of an =, the type goes for both contexts. The Numeric type
+# indicates any of Integer, UnsignedInteger, Double. A space separated list of types
+# indicates a list of return values.
+# In the presence of the OVERLOAD flag, the return type is only valid if the input
+# is not overloaded.
+
+# Format:
+# AST op, AST op class, op name, Perl OP, C flags, options, return type
+
+# baseop
+ast_baseop_time,		ast_opc_baseop,	time(),		OP_TIME, 	0,	emit,	Integer
+ast_baseop_times,	ast_opc_baseop,	times(),	OP_TMS, 	0,	emit,	Scalar=Double List=Double Double Double Double
+ast_baseop_empty,	ast_opc_baseop,	(),		OP_STUB, 	0,	,	Any # really: empty list in list/void or undef in scalar context
+ast_baseop_gethostent,	ast_opc_baseop,  gethostent(),	OP_GHOSTENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_baseop_getnetent,	ast_opc_baseop,  getnetent(),	OP_GNETENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_baseop_getservent,	ast_opc_baseop,  getservent(),	OP_GSERVENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_baseop_endhostent,	ast_opc_baseop,  endhostent(),	OP_EHOSTENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_baseop_endnetent,	ast_opc_baseop,  endnetent(),	OP_ENETENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_baseop_getpwent,	ast_opc_baseop,  getpwent(),	OP_GPWENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_baseop_setpwent,	ast_opc_baseop,  setpwent(),	OP_SPWENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_baseop_getgrent,	ast_opc_baseop,  getgrent(),	OP_GGRENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_baseop_setgrent,	ast_opc_baseop,  setgrent(),	OP_SGRENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_baseop_endgrent,	ast_opc_baseop,  endgrent(),	OP_EGRENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_baseop_getlogin,	ast_opc_baseop,  getlogin(),	OP_GETLOGIN,	0,	emit,	Scalar=Any List=List[Any]
+ast_baseop_endpwent,	ast_opc_baseop,  endpwent(),	OP_EPWENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_baseop_endprotoend,	ast_opc_baseop,  endprotoent(),	OP_EPROTOENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_baseop_endservend,	ast_opc_baseop,  endservent(),	OP_ESERVENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_baseop_getprotoend,	ast_opc_baseop,  getprotoent(),	OP_GPROTOENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_baseop_wait,		ast_opc_baseop,  wait(),		OP_WAIT,	0,	emit,	Integer
+ast_baseop_getppid,	ast_opc_baseop,  getppid(),	OP_GETPPID,	0,	emit,	Integer
+ast_baseop_anoncode,	ast_opc_baseop,  anon CV constr,	OP_ANONCODE,	0,	emit,	Any
+ast_baseop_fork,		ast_opc_baseop,  fork(),		OP_FORK,	0,	emit,	Any # (integer or undef)
+ast_baseop_method_named, ast_opc_baseop,  const meth lkup,OP_METHOD_NAMED,0,	emit,	Any # always CV?
+ast_baseop_continue,	ast_opc_baseop,	continue,	OP_CONTINUE,	0,	emit,	Empty # really, never returns
+ast_baseop_break,	ast_opc_baseop,	break,		OP_BREAK,	0,	emit,	Empty # really, never returns
+
+# unops (but some OP_STUB are really null-ary... => baseop)
+ast_unop_localtime,	ast_opc_unop,	localtime(),	OP_LOCALTIME, 	KIDS_OPTIONAL,	emit,	Scalar=String List=Integer Integer Integer Integer Integer Double Integer Integer Integer
+ast_unop_gmtime,		ast_opc_unop,    gmtime(),	OP_GMTIME, 	KIDS_OPTIONAL,	emit,	Scalar=String List=Integer Integer Integer Integer Integer Double Integer Integer Integer
+ast_unop_alarm,		ast_opc_unop,    alarm(),	OP_ALARM, 	KIDS_OPTIONAL,	emit,   Any
+ast_unop_sleep,		ast_opc_unop,    sleep(),	OP_SLEEP, 	KIDS_OPTIONAL,	emit,	Integer
+ast_unop_negate,		ast_opc_unop,	unary -,	OP_NEGATE, 	OVERLOAD,	emit,	Numeric
+ast_unop_sin,		ast_opc_unop,	sin,		OP_SIN,		KIDS_OPTIONAL|OVERLOAD,	emit,	Double
+ast_unop_cos,		ast_opc_unop,	cos,		OP_COS,		KIDS_OPTIONAL|OVERLOAD,	emit,	Double
+ast_unop_abs,		ast_opc_unop,	abs,		OP_ABS,		KIDS_OPTIONAL|OVERLOAD,	emit,	Numeric
+ast_unop_sqrt,		ast_opc_unop,	sqrt,		OP_SQRT,	KIDS_OPTIONAL|OVERLOAD,	emit,	Double
+ast_unop_log,		ast_opc_unop,	log,		OP_LOG,		KIDS_OPTIONAL|OVERLOAD,	emit,	Double
+ast_unop_exp,		ast_opc_unop,	exp,		OP_EXP,		KIDS_OPTIONAL|OVERLOAD,	emit,	Double
+ast_unop_perl_int,	ast_opc_unop,	int,		OP_INT,		KIDS_OPTIONAL|OVERLOAD,	emit,	Numeric # type could be Integer or UnsignedInteger if we ignore IV/UV => NV size spill.
+ast_unop_bitwise_not,	ast_opc_unop,	~,		OP_COMPLEMENT,	OVERLOAD,	emit,	Any
+ast_unop_bool_not,	ast_opc_unop,	!,		OP_NOT,		OVERLOAD,	emit,	Integer
+ast_unop_defined,	ast_opc_unop,	defined,	OP_DEFINED,	KIDS_OPTIONAL,	emit,	Integer
+ast_unop_rand,		ast_opc_unop,	rand,		OP_RAND,	KIDS_OPTIONAL,	emit,	Double
+ast_unop_srand,		ast_opc_unop,	srand,		OP_SRAND,	KIDS_OPTIONAL,	emit,	UnsignedInteger
+ast_unop_hex,		ast_opc_unop,	hex,		OP_HEX,		KIDS_OPTIONAL,	emit,	Numeric
+ast_unop_oct,		ast_opc_unop,	oct,		OP_OCT,		KIDS_OPTIONAL,	emit,	Numeric
+ast_unop_length,		ast_opc_unop,	length,		OP_LENGTH,	KIDS_OPTIONAL,	emit,	Any # may be undef :(
+ast_unop_ord,		ast_opc_unop,	ord,		OP_ORD,		KIDS_OPTIONAL,	emit,	UnsignedInteger
+ast_unop_chr,		ast_opc_unop,	chr,		OP_CHR,		KIDS_OPTIONAL,	emit,	String
+ast_unop_lc,		ast_opc_unop,	lc,		OP_LC,		KIDS_OPTIONAL,	emit,	String
+ast_unop_uc,		ast_opc_unop,	uc,		OP_UC,		KIDS_OPTIONAL,	emit,	String
+ast_unop_fc,		ast_opc_unop,	fc,		OP_FC,		KIDS_OPTIONAL,	emit,	String
+ast_unop_lcfirst,	ast_opc_unop,	lcfirst,	OP_LCFIRST,	KIDS_OPTIONAL,	emit,	String
+ast_unop_ucfirst,	ast_opc_unop,	ucfirst,	OP_UCFIRST,	KIDS_OPTIONAL,	emit,	String
+ast_unop_quotemeta,	ast_opc_unop,	quotemeta,	OP_QUOTEMETA,	KIDS_OPTIONAL,	emit,	String
+ast_unop_preinc,		ast_opc_unop,	++(),		OP_PREINC,	OVERLOAD,	emit,	Any
+ast_unop_postinc,	ast_opc_unop,	()++,		OP_POSTINC,	OVERLOAD,	emit,	Any
+ast_unop_predec,		ast_opc_unop,	--(),		OP_PREDEC,	OVERLOAD,	emit,	Any
+ast_unop_postdec,	ast_opc_unop,	()--,		OP_POSTDEC,	OVERLOAD,	emit,	Any
+ast_unop_undef,		ast_opc_unop,	undef(),	OP_UNDEF,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_sv_deref,	ast_opc_unop,	sv_deref,	OP_RV2SV,	OVERLOAD,	emit,	Any
+ast_unop_sv_ref,		ast_opc_unop,	sv_ref,		OP_SREFGEN,	0,	emit,	Scalar
+ast_unop_refgen,		ast_opc_unop,	refgen,		OP_REFGEN,	0,	emit,	Scalar # TODO is this necessary? How does it relate to OP_SREFGEN? Seems like it's the more general case of OP_SREFGEN? TODO: can this be merged with srefgen or is there even a generally better way to express the semantics of both?
+ast_unop_av_deref,	ast_opc_unop,	av_deref,	OP_RV2AV,	OVERLOAD,	,	Any
+ast_unop_hv_deref,	ast_opc_unop,	hv_deref,	OP_RV2HV,	OVERLOAD,	,	Any
+ast_unop_gv_deref,	ast_opc_unop,	gv_deref,	OP_RV2GV,	OVERLOAD,	,	Any
+ast_unop_cv_deref,	ast_opc_unop,	cv_deref,	OP_RV2CV,	OVERLOAD,	,	Any
+ast_unop_getc,		ast_opc_unop,	getc,		OP_GETC,	KIDS_OPTIONAL,	emit,	Any
+ast_unop_array_len,	ast_opc_unop,	array_len,	OP_AV2ARYLEN,	0,	emit,	Integer # FIXME lvalue?
+ast_unop_array_shift,	ast_opc_unop,	shift(),	OP_SHIFT,	KIDS_OPTIONAL,	emit,	Any
+ast_unop_array_pop,	ast_opc_unop,	pop(),		OP_POP,		KIDS_OPTIONAL,	emit,	Any
+ast_unop_caller,		ast_opc_unop,	caller(),	OP_CALLER,	KIDS_OPTIONAL,	emit,	Scalar=Any List=List[Any]
+ast_unop_wantarray,	ast_opc_unop,	wantarray(),	OP_WANTARRAY,	KIDS_OPTIONAL,	emit,	Scalar # really has no kid ever!
+ast_unop_study,		ast_opc_unop,	study(),	OP_STUDY,	KIDS_OPTIONAL,	emit,	UnsignedInteger
+ast_unop_chdir,		ast_opc_unop,	chdir(),	OP_CHDIR,	KIDS_OPTIONAL,	emit,	UnsignedInteger
+ast_unop_chroot,		ast_opc_unop,	chroot(),	OP_CHROOT,	KIDS_OPTIONAL,	emit,	UnsignedInteger
+ast_unop_readlink,	ast_opc_unop,	readlink(),	OP_READLINK,	KIDS_OPTIONAL,	emit,	Scalar # String?
+ast_unop_rmdir,		ast_opc_unop,	rmdir(),	OP_RMDIR,	KIDS_OPTIONAL,	emit,	UnsignedInteger # Boolean
+ast_unop_stat,		ast_opc_unop,	stat(),		OP_STAT,	KIDS_OPTIONAL,	emit,	Scalar=Any List=List[Any]
+ast_unop_lstat,		ast_opc_unop,	lstat(),	OP_LSTAT,	KIDS_OPTIONAL,	emit,	Scalar=Any List=List[Any]
+ast_unop_ft_rread,	ast_opc_unop,	ft -R,		OP_FTRREAD,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_rwrite,	ast_opc_unop,	ft -W,		OP_FTRWRITE,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_rexec,	ast_opc_unop,	ft -X,		OP_FTREXEC,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_eread,	ast_opc_unop,	ft -r,		OP_FTEREAD,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_ewrite,	ast_opc_unop,	ft -w,		OP_FTEWRITE,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_eexec,	ast_opc_unop,	ft -x,		OP_FTEEXEC,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_is,		ast_opc_unop,	ft -e,		OP_FTIS,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_size,	ast_opc_unop,	ft -s,		OP_FTSIZE,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_mtime,	ast_opc_unop,	ft -M,		OP_FTMTIME,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_atime,	ast_opc_unop,	ft -A,		OP_FTATIME,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_ctime,	ast_opc_unop,	ft -C,		OP_FTCTIME,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_rowned,	ast_opc_unop,	ft -O,		OP_FTROWNED,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_eowned,	ast_opc_unop,	ft -o,		OP_FTEOWNED,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_zero,	ast_opc_unop,	ft -z,		OP_FTZERO,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_sock,	ast_opc_unop,	ft -S,		OP_FTSOCK,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_chr,		ast_opc_unop,	ft -c,		OP_FTCHR,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_blk,		ast_opc_unop,	ft -b,		OP_FTBLK,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_file,	ast_opc_unop,	ft -f,		OP_FTFILE,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_dir,		ast_opc_unop,	ft -d,		OP_FTDIR,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_pipe,	ast_opc_unop,	ft -p,		OP_FTPIPE,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_suid,	ast_opc_unop,	ft -u,		OP_FTSUID,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_sgid,	ast_opc_unop,	ft -g,		OP_FTSGID,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_svtx,	ast_opc_unop,	ft -k,		OP_FTSVTX,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_link,	ast_opc_unop,	ft -l,		OP_FTLINK,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_tty,		ast_opc_unop,	ft -t,		OP_FTTTY,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_text,	ast_opc_unop,	ft -T,		OP_FTTEXT,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_ft_binary,	ast_opc_unop,	ft -B,		OP_FTBINARY,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_exit,		ast_opc_unop,	exit(),		OP_EXIT,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_backtick,	ast_opc_unop,	backticks,	OP_BACKTICK,	0,	emit,	Scalar
+ast_unop_pos,		ast_opc_unop,	pos(),		OP_POS,		0,	emit,	Scalar
+ast_unop_ref,		ast_opc_unop,	ref(),		OP_REF,		KIDS_OPTIONAL,	emit,	String
+ast_unop_prototype,	ast_opc_unop,	prototype(),	OP_PROTOTYPE,	0,	emit,	Scalar # String or undef
+ast_unop_hash_keys,	ast_opc_unop,	keys(%),	OP_KEYS,	0,	emit,	List[Any]
+ast_unop_ary_keys,	ast_opc_unop,	keys(@),	OP_AKEYS,	0,	emit,	List[Any]
+ast_unop_ref_keys,	ast_opc_unop,	keys(ref),	OP_RKEYS,	0,	emit,	List[Any]
+ast_unop_hash_values,	ast_opc_unop,	values(%),	OP_VALUES,	0,	emit,	List[Any]
+ast_unop_ary_values,	ast_opc_unop,	values(@),	OP_AVALUES,	0,	emit,	List[Any]
+ast_unop_ref_values,	ast_opc_unop,	values(ref),	OP_RVALUES,	0,	emit,	List[Any]
+ast_unop_hash_each,	ast_opc_unop,	each(%),	OP_EACH,	0,	emit,	List[Any]
+ast_unop_ary_each,	ast_opc_unop,	each(@),	OP_AEACH,	0,	emit,	List[Any]
+ast_unop_ref_each,	ast_opc_unop,	each(ref),	OP_REACH,	0,	emit,	List[Any]
+ast_unop_fileno,		ast_opc_unop,	fileno(),	OP_FILENO,	0,	emit,	Scalar
+ast_unop_umask,		ast_opc_unop,	umask(),	OP_UMASK,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_close,		ast_opc_unop,	close(),	OP_CLOSE,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_tied,		ast_opc_unop,	tied(),		OP_TIED,	0,	emit,	Scalar
+ast_unop_untie,		ast_opc_unop,	untie(),	OP_UNTIE,	0,	emit,	Scalar
+ast_unop_eof,		ast_opc_unop,	eof(),		OP_EOF,		KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_tell,		ast_opc_unop,	tell(),		OP_TELL,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_fh_select,	ast_opc_unop,	select(FH),	OP_SELECT,	KIDS_OPTIONAL,	emit,	Scalar
+ast_unop_gethostbyname,	ast_opc_unop,	gethostbyname,	OP_GHBYNAME,	0,	emit,	Scalar=Any List=List[Any]
+ast_unop_sethostent,	ast_opc_unop,	sethostent(),	OP_SHOSTENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_unop_setnetent,	ast_opc_unop,	setnetent(),	OP_SNETENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_unop_getpwnam,	ast_opc_unop,	getpwnam(),	OP_GPWNAM,	0,	emit,	Scalar=Any List=List[Any]
+ast_unop_getpwuid,	ast_opc_unop,	getpwuid(),	OP_GPWUID,	0,	emit,	Scalar=Any List=List[Any]
+ast_unop_setprotoent,	ast_opc_unop,	setprotoent(),	OP_SPROTOENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_unop_getgrnam,	ast_opc_unop,	getgrnam(),	OP_GGRNAM,	0,	emit,	Scalar=Any List=List[Any]
+ast_unop_getgrgid,	ast_opc_unop,	getgrgid(),	OP_GGRGID,	0,	emit,	Scalar=Any List=List[Any]
+ast_unop_setservent,	ast_opc_unop,	setservent(),	OP_SSERVENT,	0,	emit,	Scalar=Any List=List[Any]
+ast_unop_getnetbyname,	ast_opc_unop,	getnetbyname(),	OP_GNBYNAME,	0,	emit,	Scalar=Any List=List[Any]
+ast_unop_getprotobyname,	ast_opc_unop,	getprotobyname,	OP_GPBYNAME,	0,	emit,	Scalar=Any List=List[Any]
+ast_unop_getprotobynum,	ast_opc_unop,	getprotobynum,	OP_GPBYNUMBER,	0,	emit,	Scalar=Any List=List[Any]
+ast_unop_reset,		ast_opc_unop,	reset(),	OP_RESET,	KIDS_OPTIONAL,	emit,	Integer # actually, always returns 1
+ast_unop_dump,		ast_opc_unop,	dump(),		OP_DUMP,	KIDS_OPTIONAL,	emit,	Any # dump(LAVEL) is the dumbest function ever devised
+ast_unop_goto,		ast_opc_unop,	goto(),		OP_GOTO,	0,	emit,	Any # never returns
+ast_unop_dbmclose,	ast_opc_unop,	dbmclose(),	OP_DBMCLOSE,	0,	emit,	Any # docs unclear about retval
+ast_unop_readdir,	ast_opc_unop,	readdir(),	OP_READDIR,	0,	emit,	Scalar=Any List=List[Any]
+ast_unop_telldir,	ast_opc_unop,	telldir(),	OP_TELLDIR,	0,	emit,	Any
+ast_unop_rewinddir,	ast_opc_unop,	rewinddir(),	OP_REWINDDIR,	0,	emit,	Any # retval unclear in docs
+ast_unop_closedir,	ast_opc_unop,	closedir(),	OP_CLOSEDIR,	0,	emit,	Any # returns success of syscall
+ast_unop_getsockname,	ast_opc_unop,	getsockname(),	OP_GETSOCKNAME,	0,	emit,	Any
+ast_unop_getpeername,	ast_opc_unop,	getpeername(),	OP_GETPEERNAME,	0,	emit,	Any
+ast_unop_getpgrp,	ast_opc_unop,	getpgrp(),	OP_GETPGRP,	KIDS_OPTIONAL,	emit,	Integer
+ast_unop_lock,		ast_opc_unop,	lock(),		OP_LOCK,	0,	emit,	Any
+ast_unop_readline,	ast_opc_unop,	readlone(),	OP_READLINE,	KIDS_OPTIONAL,	emit,	Any
+ast_unop_require,	ast_opc_unop,	require(),	OP_REQUIRE,	KIDS_OPTIONAL,	emit,	Any
+ast_unop_dofile,		ast_opc_unop,	do 'file',	OP_DOFILE,	0,	emit,	Any
+ast_unop_method,		ast_opc_unop,	dyn meth lkup,	OP_METHOD,	0,	emit,	Any # always CV?
+ast_unop_default,	ast_opc_unop,	default{},	OP_LEAVEWHEN,	0,	,	Scalar=Any List=List[Any] # OP_LEAVEWHEN assigned to when(){} also
+# Not Unops. Handled as separate Term type.
+#ast_unop_next,		ast_opc_unop,	next,		OP_NEXT,	KIDS_OPTIONAL,	,	Any # really never returns...
+#ast_unop_last,		ast_opc_unop,	last,		OP_LAST,	KIDS_OPTIONAL,	,	Any # really never returns...
+#ast_unop_redo,		ast_opc_unop,	redo,		OP_REDO,	KIDS_OPTIONAL,	,	Any # really never returns...
+
+# binops
+ast_binop_add,		ast_opc_binop,	+,		OP_ADD,		HAS_ASSIGNMENT_FORM|OVERLOAD,	emit,	Numeric
+ast_binop_subtract,	ast_opc_binop,	-,		OP_SUBTRACT,	HAS_ASSIGNMENT_FORM|OVERLOAD,	emit,	Numeric
+ast_binop_multiply,	ast_opc_binop,	*,		OP_MULTIPLY,	HAS_ASSIGNMENT_FORM|OVERLOAD,	emit,	Numeric
+ast_binop_divide,	ast_opc_binop,	/,		OP_DIVIDE,	HAS_ASSIGNMENT_FORM|OVERLOAD,	emit,	Numeric
+ast_binop_modulo,	ast_opc_binop,	%,		OP_MODULO,	HAS_ASSIGNMENT_FORM|OVERLOAD,	emit,	Numeric
+ast_binop_atan2,		ast_opc_binop,	atan2,		OP_ATAN2,	OVERLOAD,	emit,	Numeric
+ast_binop_pow,		ast_opc_binop,	pow,		OP_POW,		OVERLOAD,	emit,	Numeric
+ast_binop_left_shift,	ast_opc_binop,	<<,		OP_LEFT_SHIFT,	HAS_ASSIGNMENT_FORM|OVERLOAD,	emit,	Numeric # Integer|UnsignedInteger. Indicated by private hint flag
+ast_binop_right_shift,	ast_opc_binop,	>>,		OP_RIGHT_SHIFT,	HAS_ASSIGNMENT_FORM|OVERLOAD,	emit,	Numeric # Integer|UnsignedInteger. Indicated by private hint flag
+ast_binop_bitwise_and,	ast_opc_binop,	&,		OP_BIT_AND,	HAS_ASSIGNMENT_FORM|OVERLOAD,	emit,	Any # Uses private hint flag for output
+ast_binop_bitwise_or,	ast_opc_binop,	|,		OP_BIT_OR,	HAS_ASSIGNMENT_FORM|OVERLOAD,	emit,	Any # Uses private hint flag for output
+ast_binop_bitwise_xor,	ast_opc_binop,	^,		OP_BIT_XOR,	HAS_ASSIGNMENT_FORM|OVERLOAD,	emit,	Any # Uses private hint flag for output
+ast_binop_num_eq,	ast_opc_binop,	==,		OP_EQ,		OVERLOAD,	emit,	Integer
+ast_binop_num_ne,	ast_opc_binop,	!=,		OP_NE,		OVERLOAD,	emit,	Integer
+ast_binop_num_lt,	ast_opc_binop,	<,		OP_LT,		OVERLOAD,	emit,	Integer
+ast_binop_num_le,	ast_opc_binop,	<=,		OP_LE,		OVERLOAD,	emit,	Integer
+ast_binop_num_gt,	ast_opc_binop,	>,		OP_GT,		OVERLOAD,	emit,	Integer
+ast_binop_num_ge,	ast_opc_binop,	>=,		OP_GE,		OVERLOAD,	emit,	Integer
+ast_binop_num_cmp,	ast_opc_binop,	<=>,		OP_NCMP,	OVERLOAD,	emit,	Integer
+ast_binop_str_eq,	ast_opc_binop,	eq,		OP_SEQ,		OVERLOAD,	emit,	Integer
+ast_binop_str_ne,	ast_opc_binop,	ne,		OP_SNE,		OVERLOAD,	emit,	Integer
+ast_binop_str_lt,	ast_opc_binop,	lt,		OP_SLT,		OVERLOAD,	emit,	Integer
+ast_binop_str_le,	ast_opc_binop,	le,		OP_SLE,		OVERLOAD,	emit,	Integer
+ast_binop_str_gt,	ast_opc_binop,	gt,		OP_SGT,		OVERLOAD,	emit,	Integer
+ast_binop_str_ge,	ast_opc_binop,	ge,		OP_SGE,		OVERLOAD,	emit,	Integer
+ast_binop_str_cmp,	ast_opc_binop,	cmp,		OP_SCMP,	OVERLOAD,	emit,	Integer
+ast_binop_bool_and,	ast_opc_binop,	&&,		OP_AND,		KIDS_CONDITIONAL|HAS_ASSIGNMENT_FORM,	emit|nonroot,	Any
+ast_binop_bool_or,	ast_opc_binop,	||,		OP_OR,		KIDS_CONDITIONAL|HAS_ASSIGNMENT_FORM,	emit|nonroot,	Any
+ast_binop_definedor,	ast_opc_binop,	//,		OP_DOR,		KIDS_CONDITIONAL|HAS_ASSIGNMENT_FORM,	emit|nonroot,	Any
+ast_binop_concat,	ast_opc_binop,	concat,		OP_CONCAT,	HAS_ASSIGNMENT_FORM|OVERLOAD,	emit,	String
+ast_binop_sassign,	ast_opc_binop,	sassign,	OP_SASSIGN,	OVERLOAD,	,	Any
+ast_binop_aassign,	ast_opc_binop,	aassign,	OP_AASSIGN,	0,	,	Any
+ast_binop_list_slice,	ast_opc_binop,	list slice,	OP_LSLICE,	0,	,	Scalar=Any List=List[Any]
+ast_binop_array_slice,	ast_opc_binop,	array slice,	OP_ASLICE,	0,	,	Scalar=Any List=List[Any]
+ast_binop_aelem,		ast_opc_binop,	array access,	OP_AELEM,	0,	emit,	Any
+ast_binop_helem,		ast_opc_binop,	hash access,	OP_HELEM,	0,	emit,	Any
+ast_binop_bless,		ast_opc_binop,	bless(),	OP_BLESS,	KIDS_OPTIONAL,	emit,	Any
+ast_binop_crypt,		ast_opc_binop,	crypt(),	OP_CRYPT,	0,	emit,	String
+ast_binop_rename,	ast_opc_binop,	rename(),	OP_RENAME,	0,	emit,	UnsignedInteger # Boolean
+ast_binop_link,		ast_opc_binop,	link(),		OP_LINK,	0,	emit,	UnsignedInteger # Boolean
+ast_binop_symlink,	ast_opc_binop,	symlink(),	OP_SYMLINK,	0,	emit,	UnsignedInteger # Boolean
+ast_binop_mkdir,		ast_opc_binop,	mkdir(),	OP_MKDIR,	KIDS_OPTIONAL,	emit,	UnsignedInteger # Boolean
+ast_binop_range,		ast_opc_binop,	range(),	OP_RANGE,	KIDS_OPTIONAL,	declareonly,	Scalar=UnsignedInteger List=List[Any]
+ast_binop_exists,	ast_opc_binop,	exists(),	OP_EXISTS,	0,	,	UnsignedInteger # Boolean
+ast_binop_delete,	ast_opc_binop,	delete(),	OP_DELETE,	0,	,	Scalar=Any List=List[Any]
+ast_binop_binmode,	ast_opc_binop,	binmode(),	OP_BINMODE,	KIDS_OPTIONAL,	emit,	Scalar
+ast_binop_truncate,	ast_opc_binop,	truncate(),	OP_TRUNCATE,	0,	emit,	Any # true or undef
+ast_binop_flock,		ast_opc_binop,	flock(),	OP_FLOCK,	0,	emit,	Any # true or false
+ast_binop_gethostbyaddr,	ast_opc_binop,	gethostbyaddr,	OP_GHBYADDR,	0,	emit,	Scalar=Any List=List[Any]
+ast_binop_getnetbyaddr,	ast_opc_binop,	getnetbyaddr(),	OP_GNBYADDR,	0,	emit,	Scalar=Any List=List[Any]
+ast_binop_getservbyname,	ast_opc_binop,	getservbyname,	OP_GSBYNAME,	0,	emit,	Scalar=Any List=List[Any]
+ast_binop_getservbyport,	ast_opc_binop,	getservbyport,	OP_GSBYPORT,	0,	emit,	Scalar=Any List=List[Any]
+ast_binop_opendir,	ast_opc_binop,	opendir(),	OP_OPEN_DIR,	0,	emit,	Any # returns true if successful
+ast_binop_seekdir,	ast_opc_binop,	seekdir(),	OP_SEEKDIR,	0,	emit,	Any # retval unclear in docs
+ast_binop_bind,		ast_opc_binop,	bind(),		OP_BIND,	0,	emit,	Any # (yes or undef: Boolean)
+ast_binop_connect,	ast_opc_binop,	connect(),	OP_CONNECT,	0,	emit,	Any # (yes or undef: Boolean)
+ast_binop_listen,	ast_opc_binop,	listen(),	OP_LISTEN,	0,	emit,	Any # (yes or undef: Boolean)
+ast_binop_accept,	ast_opc_binop,	accept(),	OP_ACCEPT,	0,	emit,	Any
+ast_binop_shutdown,	ast_opc_binop,	shutdown(),	OP_SHUTDOWN,	0,	emit,	Any # (1,0,undef)
+ast_binop_msgget,	ast_opc_binop,	msgget(),	OP_MSGGET,	0,	emit,	Any # TODO didn't look up return values
+ast_binop_semop,		ast_opc_binop,	semop(),	OP_SEMOP,	0,	emit,	Any # TODO didn't look up return values
+ast_binop_pipe,		ast_opc_binop,	pipe(),		OP_PIPE_OP,	0,	emit,	Any # (yes or undef: Boolean)
+ast_binop_waitpid,	ast_opc_binop,	waitpid(),	OP_WAITPID,	0,	emit,	Integer
+ast_binop_setpgrp,	ast_opc_binop,	setpgrp(),	OP_SETPGRP,	KIDS_OPTIONAL,	emit,	Integer
+ast_binop_getpriority,	ast_opc_binop,	getpriority(),	OP_GETPRIORITY,	0,	emit,	Integer
+ast_binop_formline,	ast_opc_binop,	formline(),	OP_FORMLINE,	0,	emit,	Integer
+ast_binop_glob_element,	ast_opc_binop,	*FOO{THING},	OP_GELEM,	0,	emit,	Any
+ast_binop_smartmatch,	ast_opc_binop,	~~,		OP_SMARTMATCH,	0,	emit,	Scalar=Any List=List[Any]
+ast_binop_glob,		ast_opc_binop,	glob(),		OP_GLOB,	0,	emit,	Scalar=Any List=List[Any]
+ast_binop_given,		ast_opc_binop,	given(){},	OP_LEAVEGIVEN,	0,	,	Scalar=Any List=List[Any]
+ast_binop_when,		ast_opc_binop,	when(){},	OP_LEAVEWHEN,	0,	,	Scalar=Any List=List[Any]
+
+
+# listops
+ast_listop_ternary,	ast_opc_listop,	?:,		OP_COND_EXPR,	KIDS_CONDITIONAL,	emit,	Any
+ast_listop_substr,	ast_opc_listop,	substr,		OP_SUBSTR,	0,	emit,	Any # can return undef, FIXME lvalue
+ast_listop_chop,		ast_opc_listop,	chop,		OP_CHOP,	0,	emit,	String
+ast_listop_chomp,	ast_opc_listop,	chomp,		OP_CHOMP,	0,	emit,	String
+ast_listop_vec,		ast_opc_listop,	vec,		OP_VEC,		0,	emit,	UnsignedInteger # FIXME lvalue
+ast_listop_sprintf,	ast_opc_listop,	sprintf,	OP_SPRINTF,	0,	emit,	String
+ast_listop_printf,	ast_opc_listop,	printf,		OP_PRTF,	0,	emit,	Any
+ast_listop_print,	ast_opc_listop,	print,		OP_PRINT,	0,	emit,	Any
+ast_listop_say,		ast_opc_listop,	say,		OP_SAY,		0,	emit,	Any
+ast_listop_join,		ast_opc_listop,	join,		OP_JOIN,	0,	emit,	String
+ast_listop_read,		ast_opc_listop,	read,		OP_READ,	0,	emit,	Any
+ast_listop_list2scalar,	ast_opc_listop,	list_to_scalar,	OP_LIST,	0,	,	Any
+ast_listop_return,	ast_opc_listop,	return,		OP_RETURN,	0,	emit,	Any
+ast_listop_reverse,	ast_opc_listop,	reverse,	OP_REVERSE,	0,	emit,	Scalar=String List=List[Any]
+ast_listop_unshift,	ast_opc_listop,	unshift(),	OP_UNSHIFT,	0,	emit,	Integer
+ast_listop_push,		ast_opc_listop,	push(),		OP_PUSH,	0,	emit,	Integer
+ast_listop_splice,	ast_opc_listop,	splice(),	OP_SPLICE,	0,	emit,	Scalar=Any List=List[Any]
+ast_listop_anonlist,	ast_opc_listop,	anon array [],	OP_ANONLIST,	0,	emit,	Scalar
+ast_listop_anonhash,	ast_opc_listop,	anon hash {},	OP_ANONHASH,	0,	emit,	Scalar
+ast_listop_chown,	ast_opc_listop,	chown(),	OP_CHOWN,	0,	emit,	Integer
+ast_listop_unlink,	ast_opc_listop,	unlink(),	OP_UNLINK,	0,	emit,	Scalar # count or false
+ast_listop_chmod,	ast_opc_listop,	chmod(),	OP_CHMOD,	0,	emit,	UnsignedInteger
+ast_listop_utime,	ast_opc_listop,	utime(),	OP_UTIME,	0,	emit,	UnsignedInteger
+ast_listop_split,	ast_opc_listop,	split(),	OP_SPLIT,	0,	emit,	Scalar=Any List=List[Any]
+ast_listop_warn,		ast_opc_listop,	warn(),		OP_WARN,	0,	emit,	UnsignedInteger # Boolean (yes)
+ast_listop_match,	ast_opc_listop,	regexp match,	OP_MATCH,	0,	emit,	Scalar=Any List=List[Any] # could be a binop?
+ast_listop_subst,	ast_opc_listop,	regexp subst,	OP_SUBST,	0,	emit,	Scalar=Any List=List[Any] # could be a binop?
+ast_listop_index,	ast_opc_listop,	index(),	OP_INDEX,	0,	emit,	Integer
+ast_listop_rindex,	ast_opc_listop,	rindex(),	OP_RINDEX,	0,	emit,	Integer
+ast_listop_repeat,	ast_opc_listop,	x operator,	OP_REPEAT,	0,	,	Scalar=Any List=List[Any]
+ast_listop_once,		ast_opc_listop,	execute-once,	OP_ONCE,	0,	emit,	Any # should this be abstracted further into a state var declaration OP? I guess not since this is pretty close to the desired semantics already.
+ast_listop_pack,		ast_opc_listop,	pack(),		OP_PACK,	0,	emit,	String
+ast_listop_unpack,	ast_opc_listop,	unpack(),	OP_UNPACK,	0,	emit,	List[Any]
+ast_listop_open,		ast_opc_listop,	open(),		OP_OPEN,	0,	emit,	Scalar
+ast_listop_seek,		ast_opc_listop,	seek(),		OP_SEEK,	0,	emit,	Any # 1 on success, "false" otherwise
+ast_listop_sysopen,	ast_opc_listop,	sysopen(),	OP_SYSOPEN,	0,	emit,	Any
+ast_listop_sysseek,	ast_opc_listop,	sysseek(),	OP_SYSSEEK,	0,	emit,	Any
+ast_listop_syswrite,	ast_opc_listop,	syswrite(),	OP_SYSWRITE,	0,	emit,	Any
+ast_listop_sysread,	ast_opc_listop,	sysread(),	OP_SYSREAD,	0,	emit,	Any
+ast_listop_die,		ast_opc_listop,	die(),		OP_DIE,		0,	emit,	Empty # umm, returns... nothing?
+ast_listop_ioctl,	ast_opc_listop,	ioctl(),	OP_IOCTL,	0,	emit,	Any # undef or "0 but true" or a number
+ast_listop_fcntl,	ast_opc_listop,	fcntl(),	OP_FCNTL,	0,	emit,	Any # "0 but true" or a number?
+ast_listop_sysselect,	ast_opc_listop,	select syscall,	OP_SSELECT,	0,	emit,	Integer # according to docs
+ast_listop_syscall,	ast_opc_listop,	gen. syscall,	OP_SYSCALL,	0,	emit,	Any # docs unclear on retval
+ast_listop_dbmopen,	ast_opc_listop,	dbmopen,	OP_DBMOPEN,	0,	emit,	Any # docs unclear on retval
+ast_listop_send,		ast_opc_listop,	send(),		OP_SEND,	0,	emit,	Any # count of bytes or undef
+ast_listop_recv,		ast_opc_listop,	recv(),		OP_RECV,	0,	emit,	Any
+ast_listop_socket,	ast_opc_listop,	socket(),	OP_SOCKET,	0,	emit,	Any # (yes or undef: Boolean)
+ast_listop_socketpair,	ast_opc_listop,	socketpair(),	OP_SOCKPAIR,	0,	emit,	Any # (yes or undef: Boolean)
+ast_listop_getsockopt,	ast_opc_listop,	getsockopt(),	OP_GSOCKOPT,	0,	emit,	Any
+ast_listop_setsockopt,	ast_opc_listop,	setsockopt(),	OP_SSOCKOPT,	0,	emit,	Any
+ast_listop_shmget,	ast_opc_listop,	shmget(),	OP_SHMGET,	0,	emit,	Any # TODO didn't look up return values
+ast_listop_shmctl,	ast_opc_listop,	shmctl(),	OP_SHMCTL,	0,	emit,	Any # TODO didn't look up return values
+ast_listop_shmread,	ast_opc_listop,	shmread(),	OP_SHMREAD,	0,	emit,	Any # TODO didn't look up return values
+ast_listop_shmwrite,	ast_opc_listop,	shmwrite(),	OP_SHMWRITE,	0,	emit,	Any # TODO didn't look up return values
+ast_listop_msgctl,	ast_opc_listop,	msgctl(),	OP_MSGCTL,	0,	emit,	Any # TODO didn't look up return values
+ast_listop_msgsnd,	ast_opc_listop,	msgsnd(),	OP_MSGSND,	0,	emit,	Any # TODO didn't look up return values
+ast_listop_msgrcv,	ast_opc_listop,	msgrcv(),	OP_MSGRCV,	0,	emit,	Any # TODO didn't look up return values
+ast_listop_semget,	ast_opc_listop,	semget(),	OP_SEMGET,	0,	emit,	Any # TODO didn't look up return values
+ast_listop_semctl,	ast_opc_listop,	semctl(),	OP_SEMCTL,	0,	emit,	Any # TODO didn't look up return values
+ast_listop_setpriority,	ast_opc_listop,	setpriority(),	OP_SETPRIORITY,	0,	emit,	Integer
+ast_listop_kill,		ast_opc_listop,	kill(),		OP_KILL,	0,	emit,	Integer
+ast_listop_system,	ast_opc_listop,	system(),	OP_SYSTEM,	0,	emit,	Integer
+ast_listop_exec,		ast_opc_listop,	exec(),		OP_EXEC,	0,	emit,	Integer
+ast_listop_hash_slice,	ast_opc_listop,	hash slice,	OP_HSLICE,	0,	emit,	Scalar=Any List=List[Any]
+
+
+ast_op_scope,		ast_opc_block,	scope,		OP_SCOPE,	0,	,	Scalar=Any List=List[Any]

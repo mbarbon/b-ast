@@ -1,0 +1,11 @@
+%module{B::AST};
+
+%package{B::AST};
+
+#include "scan_optree.h"
+#include "xsp_typedefs.h"
+
+// work around XS++ bug
+#define analyze_optree(coderef) analyze_optree(aTHX_ coderef)
+
+std::vector<B::AST::Term *> analyze_optree(SV *coderef);

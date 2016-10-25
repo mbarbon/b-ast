@@ -1,0 +1,22 @@
+%module{B::AST};
+
+#include "ast_values.h"
+#include "ast_terms.h"
+#include "xsp_typedefs.h"
+
+class B::AST::Value {
+    ast_value_type get_type() const;
+};
+
+class B::AST::RVScalar : public B::AST::Value {
+    const B::AST::Value *reference %get;
+};
+
+class B::AST::IVScalar : public B::AST::Value {
+    IV integer_value %get;
+};
+
+class B::AST::Subroutine : public B::AST::Value {
+    const B::AST::Term *ast %get;
+    const std::vector<B::AST::Value *> closed_over %get;
+};

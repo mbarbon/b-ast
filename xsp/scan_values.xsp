@@ -1,0 +1,11 @@
+%module{B::AST};
+
+%package{B::AST};
+
+#include "scan_values.h"
+#include "xsp_typedefs.h"
+
+// work around XS++ bug
+#define analyze_value(svref) analyze_value(aTHX_ svref)
+
+B::AST::Value *analyze_value(SV *sv);

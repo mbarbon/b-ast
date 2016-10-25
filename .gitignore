@@ -1,0 +1,12 @@
+*.swp
+*.swo
+*~
+*.bak
+blib/
+*.o
+MYMETA.*
+B-AST-*
+_build
+/Build
+/dev_Build.PL
+buildtmp/
