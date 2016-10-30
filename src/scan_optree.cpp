@@ -9,6 +9,7 @@
 #include "ast_debug.h"
 
 #include "ast_terms.h"
+#include "ast_basicblock.h"
 
 #include <vector>
 #include <list>
@@ -71,7 +72,6 @@ using namespace PerlAST;
 using namespace std::tr1;
 using namespace std;
 
-static vector<PerlAST::AST::Term *> analyze_optree_internal(pTHX_ OP *o, OPTreeASTVisitor &visitor);
 static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor);
 
 
@@ -93,7 +93,9 @@ namespace PerlAST {
         OPTreeASTVisitor(pTHX_ CV *cv)
             : containing_cv(cv), last_nextstate(NULL), current_sequence(NULL),
               skip_next_leaveloop(false)
-        {}
+        {
+            push_new_block();
+        }
 
         visit_control_t visit_op(pTHX_ OP *o, OP *parentop) {
             unsigned int otype = o->op_type;
@@ -211,8 +213,34 @@ namespace PerlAST {
             last_nextstate = nextstate_op;
         }
 
+        PerlAST::AST::BasicBlock *current_block() {
+            return basic_blocks.back();
+        }
+
+        PerlAST::AST::BasicBlock *push_new_block() {
+            PerlAST::AST::BasicBlock *block = new PerlAST::AST::BasicBlock(basic_blocks.size() + 1);
+            basic_blocks.push_back(block);
+            return block;
+        }
+
+        PerlAST::AST::BasicBlock *push_and_link_new_block() {
+            PerlAST::AST::BasicBlock *current = current_block();
+            PerlAST::AST::BasicBlock *next = push_new_block();
+            link_blocks(current, next);
+            return next;
+        }
+
+        void push_to_block(PerlAST::AST::Term *term) {
+            basic_blocks.back()->push_term(term);
+        }
+
+        const std::vector<PerlAST::AST::BasicBlock *> get_basic_blocks() const {
+            return basic_blocks;
+        }
+
     private:
         vector<PerlAST::AST::Term *> candidates;
+        vector<PerlAST::AST::BasicBlock *> basic_blocks;
         CV *containing_cv;
         OP *last_nextstate;
         unordered_map<PADOFFSET, AST::VariableDeclaration *> variables;
@@ -242,72 +270,80 @@ static void ast_free_term_vector(pTHX_ vector<PerlAST::AST::Term *> &kids) {
 }
 
 
+static int ast_build_kid_term(pTHX_ OP *kid, OPTreeASTVisitor &visitor, vector<AST::Term *> &kid_terms, unsigned int ikid) {
+    AST_DEBUG_2("ast_build_kid_term considering kid (%u) type %s\n", ikid, OP_NAME(kid));
+    if (AST_DEBUGGING && kid->op_type == OP_NULL) {
+        printf("                   kid is OP_NULL and used to be %s\n", PL_op_name[kid->op_targ]);
+    }
+
+    if (kid->op_type == OP_NULL && !(kid->op_flags & OPf_KIDS)) {
+        AST_DEBUG_1("ast_build_kid_term skipping kid (%u) since it's an OP_NULL without kids.\n", ikid);
+        return 0;
+    }
+
+#if PERL_VERSION >= 18
+    // The padrange optimization leaves the OP_PADxV ops in place,
+    // so we can just skip it and continue parsing the remaining
+    // kids
+    if (kid->op_type == OP_PADRANGE) {
+        AST_DEBUG_1("ast_build_kid_term skipping kid (%u) since it's an OP_PADRANGE.\n", ikid);
+        return 0;
+    }
+#endif
+
+    // FIXME possibly wrong. PUSHMARK assumed to be an implementation detail that is not
+    //       strictly necessary in an AST listop. Totally speculative.
+    if (kid->op_type == OP_PUSHMARK && !(kid->op_flags & OPf_KIDS)) {
+        AST_DEBUG_1("ast_build_kid_term skipping kid (%u) since it's an OP_PUSHMARK without kids.\n", ikid);
+        return 0;
+    }
+
+    AST::Term *kid_term = ast_build(aTHX_ kid, visitor);
+
+    // pass-through inplace-sort
+    if (kid_term == NULL &&
+            kid_terms.size() == 1 &&
+            kid_terms[0]->get_type() == ast_ttype_list) {
+        // inplace sort
+        AST::List *list = (AST::List *) kid_terms[0];
+
+        if (list->kids.size() == 1 &&
+                list->kids[0]->get_type() == ast_ttype_sort &&
+                ((AST::Sort *) list->kids[0])->is_in_place_sort()) {
+            kid_terms[0] = list->kids[0];
+            list->kids.pop_back();
+            delete list;
+            return 0;
+        }
+    }
+
+    // Handle a few special kid cases
+    if (kid_term == NULL) {
+        // Failed to build sub-AST, free ASTs build thus far before bailing
+        AST_DEBUG("ast_build_kid_term failed to build sub-AST - unwinding.\n");
+        ast_free_term_vector(aTHX_ kid_terms);
+        return 1;
+    } else if (kid_term->get_type() == ast_ttype_op && ((AST::Op *)kid_term)->get_op_type() == ast_baseop_empty) {
+        // empty list is not really a kid, don't include in child list
+        delete kid_term;
+        kid_term = NULL;
+    } else {
+        kid_terms.push_back(kid_term);
+    }
+
+    if (AST_DEBUGGING && kid_term)
+        printf("ast_build_kid_term got kid (%u, %p) of type %s in return\n", ikid, (void*)kid_term, kid_term->perl_class());
+
+    return 0;
+}
+
 static int ast_build_kid_terms(pTHX_ OP *o, OPTreeASTVisitor &visitor, vector<AST::Term *> &kid_terms) {
     unsigned int ikid = 0;
     if (o->op_flags & OPf_KIDS) {
         for (OP *kid = ((UNOP*)o)->op_first; kid; kid = kid->op_sibling) {
-            AST_DEBUG_2("ast_build_kid_terms considering kid (%u) type %s\n", ikid, OP_NAME(kid));
-            if (AST_DEBUGGING && kid->op_type == OP_NULL) {
-                printf("                   kid is OP_NULL and used to be %s\n", PL_op_name[kid->op_targ]);
-            }
-
-            if (kid->op_type == OP_NULL && !(kid->op_flags & OPf_KIDS)) {
-                AST_DEBUG_1("ast_build_kid_terms skipping kid (%u) since it's an OP_NULL without kids.\n", ikid);
-                continue;
-            }
-
-#if PERL_VERSION >= 18
-            // The padrange optimization leaves the OP_PADxV ops in place,
-            // so we can just skip it and continue parsing the remaining
-            // kids
-            if (kid->op_type == OP_PADRANGE) {
-                AST_DEBUG_1("ast_build_kid_terms skipping kid (%u) since it's an OP_PADRANGE.\n", ikid);
-                continue;
-            }
-#endif
-
-            // FIXME possibly wrong. PUSHMARK assumed to be an implementation detail that is not
-            //       strictly necessary in an AST listop. Totally speculative.
-            if (kid->op_type == OP_PUSHMARK && !(kid->op_flags & OPf_KIDS)) {
-                AST_DEBUG_1("ast_build_kid_terms skipping kid (%u) since it's an OP_PUSHMARK without kids.\n", ikid);
-                continue;
-            }
-
-            AST::Term *kid_term = ast_build(aTHX_ kid, visitor);
-
-            // pass-through inplace-sort
-            if (kid_term == NULL &&
-                    kid_terms.size() == 1 &&
-                    kid_terms[0]->get_type() == ast_ttype_list) {
-                // inplace sort
-                AST::List *list = (AST::List *) kid_terms[0];
-
-                if (list->kids.size() == 1 &&
-                        list->kids[0]->get_type() == ast_ttype_sort &&
-                        ((AST::Sort *) list->kids[0])->is_in_place_sort()) {
-                    kid_terms[0] = list->kids[0];
-                    list->kids.pop_back();
-                    delete list;
-                    return 0;
-                }
-            }
-
-            // Handle a few more special kid cases
-            if (kid_term == NULL) {
-                // Failed to build sub-AST, free ASTs build thus far before bailing
-                AST_DEBUG("ast_build_kid_terms failed to build sub-AST - unwinding.\n");
-                ast_free_term_vector(aTHX_ kid_terms);
+            if (ast_build_kid_term(aTHX_ kid, visitor, kid_terms, ikid))
                 return 1;
-            } else if (kid_term->get_type() == ast_ttype_op && ((AST::Op *)kid_term)->get_op_type() == ast_baseop_empty) {
-                // empty list is not really a kid, don't include in child list
-                delete kid_term;
-                kid_term = NULL;
-            } else {
-                kid_terms.push_back(kid_term);
-            }
 
-            if (AST_DEBUGGING && kid_term)
-                printf("ast_build_kid_terms got kid (%u, %p) of type %s in return\n", ikid, (void*)kid_term, kid_term->perl_class());
             ++ikid;
         } // end for kids
     } // end if have kids
@@ -440,6 +476,8 @@ static PerlAST::AST::While *ast_build_while(pTHX_ OP *start, LOGOP *condition, O
 static PerlAST::AST::BareBlock *ast_build_block(pTHX_ OP *start, OP *body, OP *cont, OPTreeASTVisitor &visitor) {
     PerlAST::AST::Term *ast_body = NULL, *ast_cont = NULL;
 
+    /* XXX flow new basic block */
+
     ast_body = ast_build_body(aTHX_ body, visitor);
     ast_cont = ast_build_body(aTHX_ cont, visitor);
 
@@ -553,6 +591,8 @@ static PerlAST::AST::Term *ast_build_loop(pTHX_ OP *start, PerlAST::AST::Term *i
         loop_ctl.push_loop_scope(aTHX_ loop_nextstate);
     }
 
+    /* XXX flow */
+
     AST::Term *retval;
     if (init || step)
         retval = ast_build_for(aTHX_ start, init, cond, step, body, visitor);
@@ -584,6 +624,8 @@ static PerlAST::AST::Term *ast_build_given_when_default(pTHX_ UNOP *leaveop, OPT
     // valueop is rather a conditionop for "when"
     OP *valueop = enterop->op_first;
     assert(valueop);
+
+    /* XXX flow */
 
     OP *blockop = valueop->op_sibling;
     if (blockop == NULL) {
@@ -632,10 +674,40 @@ static PerlAST::AST::Term *ast_build_grep_or_map(pTHX_ OP *start, OPTreeASTVisit
         arg = arg->op_sibling;
     }
 
+    /* XXX flow */
+
     if (start->op_type == OP_MAPWHILE)
         return new AST::Map(start, map_body_term, new AST::List(param_vec));
     else
         return new AST::Grep(start, map_body_term, new AST::List(param_vec));
+}
+
+static PerlAST::AST::Term *ast_build_logop(pTHX_ LOGOP *o, ast_op_type op_type, OPTreeASTVisitor &visitor) {
+    AST::BasicBlock *head;
+    vector<AST::Term *> kid_terms;
+    unsigned int ikid = 0;
+
+    for (OP *kid = o->op_first; kid; kid = kid->op_sibling) {
+        if (ast_build_kid_term(aTHX_ kid, visitor, kid_terms, ikid)) {
+            ast_free_term_vector(aTHX_ kid_terms);
+            return NULL;
+        }
+
+        if (ikid == 0) {
+            head = visitor.current_block();
+            visitor.push_and_link_new_block();
+        }
+        ++ikid;
+    }
+    assert(kid_terms.size() == 2);
+
+    AST::Binop *result = new AST::Binop((OP *) o, op_type, kid_terms[0], kid_terms[1]);
+    head->push_term(result);
+    AST::BasicBlock *tail = visitor.push_and_link_new_block();
+
+    link_blocks(head, tail);
+
+    return result;
 }
 
 static PerlAST::AST::Term *ast_build_logical_assign(pTHX_ BINOP *bo, OPTreeASTVisitor &visitor) {
@@ -651,10 +723,12 @@ static PerlAST::AST::Term *ast_build_logical_assign(pTHX_ BINOP *bo, OPTreeASTVi
     AST::Term *left = ast_build(aTHX_ bo->op_first, visitor);
     AST::Term *right = ast_build(aTHX_ cBINOPx(bo->op_first->op_sibling)->op_first, visitor);
 
+    /* XXX flow */
+
     const unsigned int otype = bo->op_type;
-    ast_op_type ttype =   otype == OP_ANDASSIGN ? ast_binop_bool_and
-                        : otype == OP_ORASSIGN  ? ast_binop_bool_or
-                        :                         ast_binop_definedor;
+    ast_op_type ttype =   otype == OP_ANDASSIGN ? ast_logop_bool_and
+                        : otype == OP_ORASSIGN  ? ast_logop_bool_or
+                        :                         ast_logop_definedor;
 
     PerlAST::AST::Binop *retval = new AST::Binop((OP *)bo, ttype, left, right);
     retval->set_assignment_form(true);
@@ -873,6 +947,7 @@ static AST::SpecialListop *ast_build_special_listop(pTHX_ OP *o, ast_op_type op_
 /* Walk OP tree recursively, build ASTs, build subtrees */
 static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
     PerlAST::AST::Term *retval = NULL;
+    bool push_to_block = true;
 
     assert(o);
 
@@ -883,7 +958,7 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
         // separate candidates and treat as subtree.
         AST_DEBUG_1("Cannot represent this OP with AST. Emitting OP tree term in AST (Perl OP=%s).\n", OP_NAME(o));
         retval = new AST::Optree(o);
-        analyze_optree_internal(aTHX_ o, visitor);
+        visitor.visit(aTHX_ o, NULL);
 
         return retval;
     }
@@ -963,6 +1038,13 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
         retval = new AST::Binop(o, ast_op_type, kid_terms[0], kid_terms[1]); \
         retval = ast_build_targmy_assignment(retval, visitor);               \
         break;                                                               \
+    }
+
+#define EMIT_LOGOP_CODE(perl_op_type, ast_op_type)                          \
+    case perl_op_type: {                                                    \
+        retval = ast_build_logop(aTHX_ (LOGOP *) o, ast_op_type, visitor);  \
+        push_to_block = false;                                              \
+        break;                                                              \
     }
 
 #define EMIT_LISTOP_CODE(perl_op_type, ast_op_type)         \
@@ -1091,10 +1173,12 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
         if (targ_otype == OP_AELEM) {
             // AELEMFASTified aelem!
             AST_DEBUG("Passing through kid of ex-aelem\n");
+            push_to_block = false;
             retval = kid_terms[0];
             if (kid_terms.size() > 1)
                 delete kid_terms[1];
         } else if (targ_otype == OP_LIST) {
+            push_to_block = false; /* XXX flow must add pushmark */
             retval = new AST::List(kid_terms);
         } else if (targ_otype == OP_REVERSE
                    && kid_terms.size() == 1
@@ -1110,6 +1194,7 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
             if (o->op_targ == 0) {
                 // attempt to pass through this untyped null-op. FIXME likely WRONG
                 AST_DEBUG("Passing through kid of OP_NULL\n");
+                push_to_block = false;
                 retval = kid_terms[0];
             } else {
                 switch (targ_otype) {
@@ -1118,16 +1203,18 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
                 case OP_RV2GV:
                 case OP_RV2SV:
                     // Skip into ex-rv2sv for optimized global scalar/array access
+                    push_to_block = false; // already pushed
                     AST_DEBUG("Passing through kid of ex-rv2sv or ex-rv2av or ex-rv2cv\n");
                     retval = kid_terms[0];
                     break;
                 case OP_AASSIGN:
                     // Skip into ex-aassign for inplace sort
+                    push_to_block = false; // already pushed
                     retval = kid_terms[0];
                     break;
                 default:
                     AST_DEBUG_1("Cannot represent this NULL OP with AST. Emitting OP tree term in AST. (%s)\n", OP_NAME(o));
-                    analyze_optree_internal(aTHX_ o, visitor);
+                    visitor.visit(aTHX_ o, NULL);
                     retval = new AST::Optree(o);
                     ast_free_term_vector(aTHX_ kid_terms);
                     break;
@@ -1137,7 +1224,7 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
             return NULL;
         } else {
             AST_DEBUG_1("Cannot represent this NULL OP with AST. Emitting OP tree term in AST. (%s)\n", OP_NAME(o));
-            analyze_optree_internal(aTHX_ o, visitor);
+            visitor.visit(aTHX_ o, NULL);
             retval = new AST::Optree(o);
             ast_free_term_vector(aTHX_ kid_terms);
         }
@@ -1190,8 +1277,14 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
         assert(kid);
         OP *sibling = kid->op_sibling;
 
+        // even if the block does not include any control flow,
+        // it still is a syntactic structure that should not be
+        // in the control flow graph
+        push_to_block = false;
+
         // Truly empty block
         if (!sibling && OP_TYPE_IS_NN(kid, OP_STUB)) {
+            // maybe this should be entirely skipped
             retval = new AST::Empty();
         } else {
             // Else build a Block/Scope node around the result of recursing
@@ -1207,11 +1300,15 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
         LOOP *enter = cLOOPx(cBINOPo->op_first);
         OP *start = enter->op_sibling;
         assert(enter->op_type == OP_ENTER);
+
+        // see comment in OP_SCOPE
+        push_to_block = false;
+
         // while/until statement modifier, including do {} while
         if (start->op_type == OP_NULL && start->op_flags & OPf_KIDS) {
             UNOP *null = cUNOPx(start);
             if (null->op_first->op_type == OP_AND ||
-                null->op_first->op_type == OP_OR) {
+                    null->op_first->op_type == OP_OR) {
                 // statement modifier whith condition
                 retval = ast_build_loop(aTHX_ o, NULL, visitor);
             } else if (null->op_first->op_type == OP_LINESEQ &&
@@ -1232,6 +1329,7 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
     }
 
     case OP_LEAVELOOP:
+        push_to_block = false;
         retval = ast_build_loop(aTHX_ o, NULL, visitor);
         break;
 
@@ -1240,18 +1338,21 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
     // default (which is just a funny when in the OP tree)
     case OP_LEAVEGIVEN:
     case OP_LEAVEWHEN:
+        push_to_block = false;
         retval = ast_build_given_when_default(aTHX_ (UNOP *)o, visitor);
         break;
 #endif
 
     case OP_GREPWHILE:
     case OP_MAPWHILE:
+        push_to_block = false;
         retval = ast_build_grep_or_map(aTHX_ o, visitor);
         break;
 
     case OP_ANDASSIGN:
     case OP_ORASSIGN:
     case OP_DORASSIGN:
+        push_to_block = false;
         retval = ast_build_logical_assign(aTHX_ cBINOPo, visitor);
         break;
 
@@ -1320,6 +1421,7 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
     case OP_NEXT:
     case OP_LAST:
     case OP_REDO: {
+        push_to_block = false;
         MAKE_DEFAULT_KID_VECTOR
         assert(kid_terms.size() == 1 || kid_terms.size() == 0);
         AST::LoopControlStatement *lcs
@@ -1395,29 +1497,32 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
             o->op_sibling &&
             o->op_sibling->op_type == OP_UNSTACK &&
             o->op_sibling->op_sibling &&
-            o->op_sibling->op_sibling->op_type == OP_LEAVELOOP)
+            o->op_sibling->op_sibling->op_type == OP_LEAVELOOP) {
+        push_to_block = false;
         retval = ast_build_loop(aTHX_ o->op_sibling->op_sibling, retval, visitor);
+    }
+
+    // no complex control flow: push to the current basic block
+    if (retval != NULL && push_to_block)
+        visitor.push_to_block(retval);
 
     return retval;
 }
 
 
-/* Traverse OP tree from o until done OR a candidate for JITing was found.
- * For candidates, invoke JIT attempt and then move on without going into
- * the particular sub-tree; tree walking in OPTreeWalker, actual logic in
- * OPTreeASTVisitor! */
-static vector<PerlAST::AST::Term *>analyze_optree_internal(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
-    visitor.visit(aTHX_ o, NULL);
-    return visitor.get_candidates();
-}
-
-vector<PerlAST::AST::Term *> analyze_optree(pTHX_ SV *coderef) {
+std::vector<PerlAST::AST::Term *> analyze_optree_ast(pTHX_ SV *coderef) {
     if (!SvROK(coderef) || SvTYPE(SvRV(coderef)) != SVt_PVCV)
         croak("Need a code reference");
-    return analyze_optree(aTHX_ (CV *) SvRV(coderef));
+    return analyze_optree(aTHX_ (CV *) SvRV(coderef)).terms;
 }
 
-vector<PerlAST::AST::Term *> analyze_optree(pTHX_ CV *cv) {
+std::vector<PerlAST::AST::BasicBlock *> analyze_optree_basic_blocks(pTHX_ SV *coderef) {
+    if (!SvROK(coderef) || SvTYPE(SvRV(coderef)) != SVt_PVCV)
+        croak("Need a code reference");
+    return analyze_optree(aTHX_ (CV *) SvRV(coderef)).basic_blocks;
+}
+
+PerlAST::OptreeInfo analyze_optree(pTHX_ CV *cv) {
     ENTER;
     SAVECOMPPAD(); // restores both PL_comppad and PL_curpad
 
@@ -1427,9 +1532,9 @@ vector<PerlAST::AST::Term *> analyze_optree(pTHX_ CV *cv) {
     PL_curpad = AvARRAY(PL_comppad);
 
     OPTreeASTVisitor visitor(aTHX_ cv);
-    vector<PerlAST::AST::Term *> tmp = analyze_optree_internal(aTHX_ CvROOT(cv), visitor);
+    visitor.visit(aTHX_ CvROOT(cv), NULL);
 
     LEAVE;
 
-    return tmp;
+    return PerlAST::OptreeInfo(visitor.get_candidates(), visitor.get_basic_blocks());
 }

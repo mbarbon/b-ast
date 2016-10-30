@@ -3,9 +3,13 @@
 %package{B::AST};
 
 #include "scan_optree.h"
+#include "ast_terms.h"
+#include "ast_basicblock.h"
 #include "xsp_typedefs.h"
 
 // work around XS++ bug
-#define analyze_optree(coderef) analyze_optree(aTHX_ coderef)
+#define analyze_optree_ast(coderef) analyze_optree_ast(aTHX_ coderef)
+#define analyze_optree_basic_block(coderef) analyze_optree_basic_block(aTHX_ coderef)
 
-std::vector<B::AST::Term *> analyze_optree(SV *coderef);
+std::vector<B::AST::Term *> analyze_optree_ast(SV *coderef);
+std::vector<B::AST::BasicBlock *> analyze_optree_basic_blocks(SV *coderef);

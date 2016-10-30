@@ -1,0 +1,12 @@
+%module{B::AST};
+
+#include "ast_basicblock.h"
+#include "ast_terms.h"
+#include "xsp_typedefs.h"
+
+class B::AST::BasicBlock {
+    unsigned int label %get;
+    std::vector<B::AST::Term *> sequence %get;
+    std::vector<B::AST::BasicBlock *> predecessors %get;
+    std::vector<B::AST::BasicBlock *> successors %get;
+};

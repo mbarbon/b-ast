@@ -4,7 +4,7 @@
 static PerlAST::AST::Value *analyze_value_internal(pTHX_ SV *sv);
 
 static PerlAST::AST::Value *analyze_cv(pTHX_ CV *cv) {
-    std::vector<PerlAST::AST::Term *> terms = analyze_optree(aTHX_ cv);
+    std::vector<PerlAST::AST::Term *> terms = analyze_optree(aTHX_ cv).terms;
     if (terms.size() == 0)
         croak("Failed to get an AST");
     if (terms.size() > 1)

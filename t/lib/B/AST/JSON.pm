@@ -17,6 +17,7 @@ sub json_value {
 }
 
 sub json_type { substr ref($_[0]), 8 }
+sub concise_string { $_[0]->json_type }
 
 package B::AST::Empty;
 
@@ -46,6 +47,21 @@ sub json_fields { value => $_[0]->get_string_value }
 package B::AST::UndefConstant;
 
 sub json_fields { }
+
+package B::AST::Identifier;
+
+my %sigils = (
+    B::AST::ast_sigil_scalar() => '$',
+    B::AST::ast_sigil_array()  => '@',
+    B::AST::ast_sigil_hash()   => '%',
+);
+
+sub concise_string {
+    sprintf '%s (%s%s)',
+        $_[0]->json_type,
+        $sigils{$_[0]->get_sigil} // '?',
+        $_[0]->get_name
+}
 
 package B::AST::VariableDeclaration;
 
@@ -77,6 +93,14 @@ sub json_fields {
         index   => $_[0]->get_pad_index,
         name    => $_[0]->get_name,
     );
+}
+
+package B::AST::Op;
+
+sub concise_string {
+    sprintf '%s (%s)',
+        $_[0]->json_type,
+        $_[0]->get_op_type
 }
 
 package B::AST::Baseop;
@@ -175,6 +199,8 @@ sub json_fields {
     );
 }
 
+sub concise_string { sprintf '%s (%d)', $_[0]->json_type, $_[0]->get_op_type }
+
 package B::AST::Statement;
 
 sub json_fields {
@@ -266,11 +292,6 @@ sub json_fields {
 
 package B::AST::Value;
 
-use strict;
-use warnings;
-
-use JSON;
-
 sub dump_json {
     return JSON::to_json($_[0]->json_value);
 }
@@ -300,5 +321,25 @@ sub json_fields {
         closed_over => [map $_ ? $_->json_value : undef, $_[0]->get_closed_over],
     )
 }
+
+package B::AST::BasicBlock;
+
+sub dump_json {
+    return JSON::to_json($_[0]->json_value);
+}
+
+sub json_value {
+    return {
+        label => $_[0]->label_string,
+        predecessors => [map $_->label_string, $_[0]->get_predecessors],
+        successors => [map $_->label_string, $_[0]->get_successors],
+        type => $_[0]->json_type,
+        sequence => [map $_->concise_string, $_[0]->get_sequence],
+    };
+}
+
+sub json_type { substr ref($_[0]), 8 }
+
+sub label_string { sprintf 'L%d', $_[0]->get_label }
 
 1;

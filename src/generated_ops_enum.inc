@@ -193,9 +193,6 @@ typedef enum {
   ast_binop_str_gt,
   ast_binop_str_ge,
   ast_binop_str_cmp,
-  ast_binop_bool_and,
-  ast_binop_bool_or,
-  ast_binop_definedor,
   ast_binop_concat,
   ast_binop_sassign,
   ast_binop_aassign,
@@ -239,8 +236,13 @@ typedef enum {
   ast_binop_given,
   ast_binop_when,
 
+  // Op class: ast_opc_logop
+  ast_logop_bool_and,
+  ast_logop_bool_or,
+  ast_logop_definedor,
+  ast_logop_ternary,
+
   // Op class: ast_opc_listop
-  ast_listop_ternary,
   ast_listop_substr,
   ast_listop_chop,
   ast_listop_chomp,
@@ -320,7 +322,10 @@ typedef enum {
   ast_binop_FIRST = ast_binop_add,
   ast_binop_LAST  = ast_binop_when,
 
-  ast_listop_FIRST = ast_listop_ternary,
+  ast_logop_FIRST = ast_logop_bool_and,
+  ast_logop_LAST  = ast_logop_ternary,
+
+  ast_listop_FIRST = ast_listop_substr,
   ast_listop_LAST  = ast_listop_hash_slice,
 
   ast_block_FIRST = ast_op_scope,

@@ -135,6 +135,7 @@ foreach my $op (@op_defs) {
     my $optional = has_flag($op, "KIDS_OPTIONAL") ? "_OPTIONAL" : "";
 
     my $optype = $op->[AST_CLASS] eq 'ast_opc_unop'   ? 'UNOP'
+               : $op->[AST_CLASS] eq 'ast_opc_logop'  ? 'LOGOP'
                : $op->[AST_CLASS] eq 'ast_opc_binop'  ? 'BINOP'
                : ($op->[AST_CLASS] eq 'ast_opc_listop' &&
                   has_flag($op, 'OPTIONAL_TERM'))     ? 'SPECIAL_LISTOP'

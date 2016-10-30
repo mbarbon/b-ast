@@ -186,9 +186,6 @@
   INT_CONST(ast_binop_str_gt);
   INT_CONST(ast_binop_str_ge);
   INT_CONST(ast_binop_str_cmp);
-  INT_CONST(ast_binop_bool_and);
-  INT_CONST(ast_binop_bool_or);
-  INT_CONST(ast_binop_definedor);
   INT_CONST(ast_binop_concat);
   INT_CONST(ast_binop_sassign);
   INT_CONST(ast_binop_aassign);
@@ -231,7 +228,10 @@
   INT_CONST(ast_binop_glob);
   INT_CONST(ast_binop_given);
   INT_CONST(ast_binop_when);
-  INT_CONST(ast_listop_ternary);
+  INT_CONST(ast_logop_bool_and);
+  INT_CONST(ast_logop_bool_or);
+  INT_CONST(ast_logop_definedor);
+  INT_CONST(ast_logop_ternary);
   INT_CONST(ast_listop_substr);
   INT_CONST(ast_listop_chop);
   INT_CONST(ast_listop_chomp);

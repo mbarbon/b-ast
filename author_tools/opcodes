@@ -222,9 +222,6 @@ ast_binop_str_le,	ast_opc_binop,	le,		OP_SLE,		OVERLOAD,	emit,	Integer
 ast_binop_str_gt,	ast_opc_binop,	gt,		OP_SGT,		OVERLOAD,	emit,	Integer
 ast_binop_str_ge,	ast_opc_binop,	ge,		OP_SGE,		OVERLOAD,	emit,	Integer
 ast_binop_str_cmp,	ast_opc_binop,	cmp,		OP_SCMP,	OVERLOAD,	emit,	Integer
-ast_binop_bool_and,	ast_opc_binop,	&&,		OP_AND,		KIDS_CONDITIONAL|HAS_ASSIGNMENT_FORM,	emit|nonroot,	Any
-ast_binop_bool_or,	ast_opc_binop,	||,		OP_OR,		KIDS_CONDITIONAL|HAS_ASSIGNMENT_FORM,	emit|nonroot,	Any
-ast_binop_definedor,	ast_opc_binop,	//,		OP_DOR,		KIDS_CONDITIONAL|HAS_ASSIGNMENT_FORM,	emit|nonroot,	Any
 ast_binop_concat,	ast_opc_binop,	concat,		OP_CONCAT,	HAS_ASSIGNMENT_FORM|OVERLOAD,	emit,	String
 ast_binop_sassign,	ast_opc_binop,	sassign,	OP_SASSIGN,	OVERLOAD,	,	Any
 ast_binop_aassign,	ast_opc_binop,	aassign,	OP_AASSIGN,	0,	,	Any
@@ -269,8 +266,13 @@ ast_binop_given,		ast_opc_binop,	given(){},	OP_LEAVEGIVEN,	0,	,	Scalar=Any List=
 ast_binop_when,		ast_opc_binop,	when(){},	OP_LEAVEWHEN,	0,	,	Scalar=Any List=List[Any]
 
 
+# logops
+ast_logop_bool_and,	ast_opc_logop,	&&,		OP_AND,		KIDS_CONDITIONAL|HAS_ASSIGNMENT_FORM,	emit|nonroot,	Any
+ast_logop_bool_or,	ast_opc_logop,	||,		OP_OR,		KIDS_CONDITIONAL|HAS_ASSIGNMENT_FORM,	emit|nonroot,	Any
+ast_logop_definedor,	ast_opc_logop,	//,		OP_DOR,		KIDS_CONDITIONAL|HAS_ASSIGNMENT_FORM,	emit|nonroot,	Any
+ast_logop_ternary,	ast_opc_logop,	?:,		OP_COND_EXPR,	KIDS_CONDITIONAL,	emit,	Any
+
 # listops
-ast_listop_ternary,	ast_opc_listop,	?:,		OP_COND_EXPR,	KIDS_CONDITIONAL,	emit,	Any
 ast_listop_substr,	ast_opc_listop,	substr,		OP_SUBSTR,	0,	emit,	Any # can return undef, FIXME lvalue
 ast_listop_chop,		ast_opc_listop,	chop,		OP_CHOP,	0,	emit,	String
 ast_listop_chomp,	ast_opc_listop,	chomp,		OP_CHOMP,	0,	emit,	String

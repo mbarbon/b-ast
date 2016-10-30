@@ -88,3 +88,26 @@
 };
 
 %typemap{const std::vector<B::AST::Value *>}{ast_value_vector};
+
+%typemap{const B::AST::BasicBlock *}{object};
+
+%typemap{std::vector<B::AST::BasicBlock *>}{parsed}{
+    %name{ast_basicblock_vector};
+    %cpp_type{%std::vector<PerlAST::AST::BasicBlock *>%};
+    %output_list{%
+        const unsigned int n = $CVar.size();
+        EXTEND(SP, n);
+        for (unsigned int i = 0; i < n; ++i) {
+            PerlAST::AST::BasicBlock *t = $CVar[i];
+            if (t != NULL) {
+                SV *retval = sv_newmortal();
+                sv_setref_pv( retval, xsp_constructor_class("B::AST::BasicBlock"), (void*)t );
+                PUSHs(retval);
+            } else {
+                PUSHs(&PL_sv_undef);
+            }
+        }
+    %};
+};
+
+%typemap{const std::vector<B::AST::BasicBlock *>}{ast_basicblock_vector};
