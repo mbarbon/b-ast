@@ -230,6 +230,10 @@ namespace PerlAST {
             return next;
         }
 
+        bool last_block_is_empty() const {
+            return basic_blocks.back()->sequence.empty();
+        }
+
         void push_to_block(PerlAST::AST::Term *term) {
             basic_blocks.back()->push_term(term);
         }
@@ -476,10 +480,13 @@ static PerlAST::AST::While *ast_build_while(pTHX_ OP *start, LOGOP *condition, O
 static PerlAST::AST::BareBlock *ast_build_block(pTHX_ OP *start, OP *body, OP *cont, OPTreeASTVisitor &visitor) {
     PerlAST::AST::Term *ast_body = NULL, *ast_cont = NULL;
 
-    /* XXX flow new basic block */
-
+    visitor.push_and_link_new_block();
     ast_body = ast_build_body(aTHX_ body, visitor);
+    if (!visitor.last_block_is_empty())
+        visitor.push_and_link_new_block();
     ast_cont = ast_build_body(aTHX_ cont, visitor);
+    if (!visitor.last_block_is_empty())
+        visitor.push_and_link_new_block();
 
     return new PerlAST::AST::BareBlock(start, ast_body, ast_cont);
 }
