@@ -730,9 +730,10 @@ static PerlAST::AST::Term *ast_build_logical_assign(pTHX_ BINOP *bo, OPTreeASTVi
     assert(bo->op_first->op_sibling->op_private & OPpASSIGN_BACKWARDS);
 
     AST::Term *left = ast_build(aTHX_ bo->op_first, visitor);
+    AST::BasicBlock *head = visitor.current_block();
+    visitor.push_and_link_new_block();
     AST::Term *right = ast_build(aTHX_ cBINOPx(bo->op_first->op_sibling)->op_first, visitor);
-
-    /* XXX flow */
+    visitor.push_to_block(new AST::Binop(bo->op_first->op_sibling, ast_binop_sassign, left, right));
 
     const unsigned int otype = bo->op_type;
     ast_op_type ttype =   otype == OP_ANDASSIGN ? ast_logop_bool_and
@@ -740,7 +741,11 @@ static PerlAST::AST::Term *ast_build_logical_assign(pTHX_ BINOP *bo, OPTreeASTVi
                         :                         ast_logop_definedor;
 
     PerlAST::AST::Binop *retval = new AST::Binop((OP *)bo, ttype, left, right);
+    head->push_term(retval);
     retval->set_assignment_form(true);
+    AST::BasicBlock *tail = visitor.push_and_link_new_block();
+
+    link_blocks(head, tail);
 
     return retval;
 }
