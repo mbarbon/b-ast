@@ -476,7 +476,8 @@ static PerlAST::AST::While *ast_build_while(pTHX_ OP *start, LOGOP *condition, O
     PerlAST::AST::Term *ast_condition = NULL, *ast_body = NULL, *ast_cont = NULL;
     bool is_until = false;
     bool is_do = false;
-    AST::BasicBlock *cond_head = visitor.push_and_link_new_block();
+    AST::BasicBlock *head = visitor.current_block();
+    AST::BasicBlock *cond_head = visitor.push_new_block();
 
     if (condition) {
         is_do = condition->op_other == cUNOPx(start)->op_first->op_next;
@@ -491,7 +492,7 @@ static PerlAST::AST::While *ast_build_while(pTHX_ OP *start, LOGOP *condition, O
         ast_condition = ast_build_empty(aTHX_ visitor);
     AST::BasicBlock *cond_tail = visitor.current_block();
 
-    visitor.push_and_link_new_block();
+    AST::BasicBlock *body_head = visitor.push_new_block();
     ast_body = ast_build_body(aTHX_ body, visitor);
     if (cont && !visitor.last_block_is_empty())
         visitor.push_and_link_new_block();
@@ -502,10 +503,17 @@ static PerlAST::AST::While *ast_build_while(pTHX_ OP *start, LOGOP *condition, O
     AST::While *retval = new AST::While(start, ast_condition, is_until, is_do,
                                         ast_body, ast_cont);
     cond_tail->push_term(retval);
-    visitor.push_to_block(new AST::BackEdge(retval));
+    if (!is_do)
+        visitor.push_to_block(new AST::BackEdge(retval));
 
     AST::BasicBlock *body_tail = visitor.current_block();
     AST::BasicBlock *tail = visitor.push_new_block();
+    if (!is_do) {
+        link_blocks(head, cond_head);
+    } else {
+        link_blocks(head, body_head);
+    }
+    link_blocks(cond_tail, body_head);
     link_blocks(body_tail, cond_head);
     link_blocks(cond_tail, tail);
 

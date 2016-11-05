@@ -143,4 +143,48 @@ EOT
   type: BasicBlock
 EOT
 
+bb_ast_eq_or_diff(<<'EOT', <<'EOT');
+my $a; do { print } while ($a);
+EOT
+---
+-
+  label: L1
+  predecessors: []
+  sequence:
+    - 'VariableDeclaration ($a)'
+  successors:
+    - L3
+  type: BasicBlock
+-
+  label: L2
+  predecessors:
+    - L3
+  sequence:
+    - 'Lexical ($a)'
+    - While
+  successors:
+    - L3
+    - L4
+  type: BasicBlock
+-
+  label: L3
+  predecessors:
+    - L1
+    - L2
+  sequence:
+    - 'Baseop (ast_baseop_pushmark)'
+    - 'Global ($_)'
+    - 'SpecialListop (ast_listop_print)'
+  successors:
+    - L2
+  type: BasicBlock
+-
+  label: L4
+  predecessors:
+    - L2
+  sequence: []
+  successors: []
+  type: BasicBlock
+EOT
+
 done_testing();
