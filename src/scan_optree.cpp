@@ -497,8 +497,6 @@ static PerlAST::AST::While *ast_build_while(pTHX_ OP *start, LOGOP *condition, O
     if (cont && !visitor.last_block_is_empty())
         visitor.push_and_link_new_block();
     ast_cont = ast_build_body(aTHX_ cont, visitor);
-    if (cont && !visitor.last_block_is_empty())
-        visitor.push_and_link_new_block();
 
     AST::While *retval = new AST::While(start, ast_condition, is_until, is_do,
                                         ast_body, ast_cont);
@@ -592,8 +590,6 @@ static AST::Term *ast_build_foreach(pTHX_ OP *start, OP *body, OP *cont, OPTreeA
     if (cont && !visitor.last_block_is_empty())
         visitor.push_and_link_new_block();
     ast_cont = ast_build_body(aTHX_ cont, visitor);
-    if (cont && !visitor.last_block_is_empty())
-        visitor.push_and_link_new_block();
 
     AST::Foreach *retval = new AST::Foreach(start, ast_iterator, ast_expression, ast_body, ast_cont);
     head->push_term(retval);
