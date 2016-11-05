@@ -438,25 +438,45 @@ static PerlAST::AST::Term *ast_build_body(pTHX_ OP *body, OPTreeASTVisitor &visi
     return new PerlAST::AST::Empty();
 }
 
+static PerlAST::AST::Empty *ast_build_empty(pTHX_ OPTreeASTVisitor &visitor) {
+    AST::Empty *retval = new PerlAST::AST::Empty();
+    visitor.push_to_block(retval);
+    return retval;
+}
+
 static PerlAST::AST::For *ast_build_for(pTHX_ OP *start, PerlAST::AST::Term *init, LOGOP *condition, OP *step, OP *body, OPTreeASTVisitor &visitor) {
     PerlAST::AST::Term *ast_condition = NULL, *ast_step = NULL, *ast_body = NULL;
     OP *start_op = init ? init->get_perl_op() : start;
     if (!init)
-        init = new PerlAST::AST::Empty();
+        init = ast_build_empty(aTHX_ visitor);
+    AST::BasicBlock *cond_head = visitor.push_and_link_new_block();
 
     ast_condition = condition ? ast_build(aTHX_ condition->op_first, visitor) :
-                                new PerlAST::AST::Empty();
+                                ast_build_empty(aTHX_ visitor);
+    AST::BasicBlock *cond_tail = visitor.current_block();
+
+    visitor.push_and_link_new_block();
     ast_body = ast_build_body(aTHX_ body, visitor);
     ast_step = step ? ast_build(aTHX_ step, visitor) :
-                      new PerlAST::AST::Empty();
+                      ast_build_empty(aTHX_ visitor);
 
-    return new PerlAST::AST::For(start_op, init, ast_condition, ast_step, ast_body);
+    AST::For *retval = new AST::For(start_op, init, ast_condition, ast_step, ast_body);
+    cond_tail->push_term(retval);
+    visitor.push_to_block(new AST::BackEdge(retval));
+
+    AST::BasicBlock *body_tail = visitor.current_block();
+    AST::BasicBlock *tail = visitor.push_new_block();
+    link_blocks(body_tail, cond_head);
+    link_blocks(cond_tail, tail);
+
+    return retval;
 }
 
 static PerlAST::AST::While *ast_build_while(pTHX_ OP *start, LOGOP *condition, OP *body, OP *cont, OPTreeASTVisitor &visitor) {
     PerlAST::AST::Term *ast_condition = NULL, *ast_body = NULL, *ast_cont = NULL;
     bool is_until = false;
     bool is_do = false;
+    AST::BasicBlock *cond_head = visitor.push_and_link_new_block();
 
     if (condition) {
         is_do = condition->op_other == cUNOPx(start)->op_first->op_next;
@@ -468,13 +488,28 @@ static PerlAST::AST::While *ast_build_while(pTHX_ OP *start, LOGOP *condition, O
         } else
             ast_condition = ast_build(aTHX_ condition->op_first, visitor);
     } else
-        ast_condition = new PerlAST::AST::Empty();
+        ast_condition = ast_build_empty(aTHX_ visitor);
+    AST::BasicBlock *cond_tail = visitor.current_block();
 
+    visitor.push_and_link_new_block();
     ast_body = ast_build_body(aTHX_ body, visitor);
+    if (cont && !visitor.last_block_is_empty())
+        visitor.push_and_link_new_block();
     ast_cont = ast_build_body(aTHX_ cont, visitor);
+    if (cont && !visitor.last_block_is_empty())
+        visitor.push_and_link_new_block();
 
-    return new PerlAST::AST::While(start, ast_condition, is_until, is_do,
-                                   ast_body, ast_cont);
+    AST::While *retval = new AST::While(start, ast_condition, is_until, is_do,
+                                        ast_body, ast_cont);
+    cond_tail->push_term(retval);
+    visitor.push_to_block(new AST::BackEdge(retval));
+
+    AST::BasicBlock *body_tail = visitor.current_block();
+    AST::BasicBlock *tail = visitor.push_new_block();
+    link_blocks(body_tail, cond_head);
+    link_blocks(cond_tail, tail);
+
+    return retval;
 }
 
 static PerlAST::AST::BareBlock *ast_build_block(pTHX_ OP *start, OP *body, OP *cont, OPTreeASTVisitor &visitor) {
@@ -482,7 +517,7 @@ static PerlAST::AST::BareBlock *ast_build_block(pTHX_ OP *start, OP *body, OP *c
 
     visitor.push_and_link_new_block();
     ast_body = ast_build_body(aTHX_ body, visitor);
-    if (!visitor.last_block_is_empty())
+    if (cont && !visitor.last_block_is_empty())
         visitor.push_and_link_new_block();
     ast_cont = ast_build_body(aTHX_ cont, visitor);
     if (!visitor.last_block_is_empty())
@@ -543,10 +578,25 @@ static AST::Term *ast_build_foreach(pTHX_ OP *start, OP *body, OP *cont, OPTreeA
         ast_expression = new AST::Listop(enter->op_first->op_sibling, ast_listop_reverse, kids);
     }
 
+    AST::BasicBlock *head = visitor.push_and_link_new_block();
+    AST::BasicBlock *body_head = visitor.push_and_link_new_block();
     ast_body = ast_build_body(aTHX_ body, visitor);
+    if (cont && !visitor.last_block_is_empty())
+        visitor.push_and_link_new_block();
     ast_cont = ast_build_body(aTHX_ cont, visitor);
+    if (cont && !visitor.last_block_is_empty())
+        visitor.push_and_link_new_block();
 
-    return new AST::Foreach(start, ast_iterator, ast_expression, ast_body, ast_cont);
+    AST::Foreach *retval = new AST::Foreach(start, ast_iterator, ast_expression, ast_body, ast_cont);
+    head->push_term(retval);
+    visitor.push_to_block(new AST::BackEdge(retval));
+
+    AST::BasicBlock *body_tail = visitor.current_block();
+    AST::BasicBlock *tail = visitor.push_new_block();
+    link_blocks(body_tail, head);
+    link_blocks(head, tail);
+
+    return retval;
 }
 
 static PerlAST::AST::Term *ast_build_loop(pTHX_ OP *start, PerlAST::AST::Term *init, OPTreeASTVisitor &visitor) {
@@ -597,8 +647,6 @@ static PerlAST::AST::Term *ast_build_loop(pTHX_ OP *start, PerlAST::AST::Term *i
         AST_DEBUG_2("LOOP LABEL: %s %p\n", LoopCtlTracker::get_label_from_nextstate(aTHX_ loop_nextstate).c_str(), start);
         loop_ctl.push_loop_scope(aTHX_ loop_nextstate);
     }
-
-    /* XXX flow */
 
     AST::Term *retval;
     if (init || step)
@@ -1530,6 +1578,7 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
             o->op_sibling->op_sibling &&
             o->op_sibling->op_sibling->op_type == OP_LEAVELOOP) {
         push_to_block = false;
+        visitor.push_to_block(retval);
         retval = ast_build_loop(aTHX_ o->op_sibling->op_sibling, retval, visitor);
     }
 
