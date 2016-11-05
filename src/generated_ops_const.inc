@@ -29,6 +29,7 @@
   INT_CONST(ast_baseop_method_named);
   INT_CONST(ast_baseop_continue);
   INT_CONST(ast_baseop_break);
+  INT_CONST(ast_baseop_pushmark);
   INT_CONST(ast_unop_localtime);
   INT_CONST(ast_unop_gmtime);
   INT_CONST(ast_unop_alarm);

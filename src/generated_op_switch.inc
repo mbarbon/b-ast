@@ -226,6 +226,7 @@
   || (int)otype == OP_PROTOTYPE \
   || (int)otype == OP_PRTF \
   || (int)otype == OP_PUSH \
+  || (int)otype == OP_PUSHMARK \
   || (int)otype == OP_QUOTEMETA \
   || (int)otype == OP_RAND \
   || (int)otype == OP_REACH \
@@ -560,6 +561,7 @@
   || (int)otype == OP_PROTOTYPE \
   || (int)otype == OP_PRTF \
   || (int)otype == OP_PUSH \
+  || (int)otype == OP_PUSHMARK \
   || (int)otype == OP_QUOTEMETA \
   || (int)otype == OP_RAND \
   || (int)otype == OP_REACH \

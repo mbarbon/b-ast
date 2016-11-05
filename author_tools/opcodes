@@ -57,6 +57,7 @@ ast_baseop_fork,		ast_opc_baseop,  fork(),		OP_FORK,	0,	emit,	Any # (integer or 
 ast_baseop_method_named, ast_opc_baseop,  const meth lkup,OP_METHOD_NAMED,0,	,	Any # always CV?
 ast_baseop_continue,	ast_opc_baseop,	continue,	OP_CONTINUE,	0,	emit,	Empty # really, never returns
 ast_baseop_break,	ast_opc_baseop,	break,		OP_BREAK,	0,	emit,	Empty # really, never returns
+ast_baseop_pushmark,	ast_opc_baseop,	pushmark,	OP_PUSHMARK,	0,      0,      Empty
 
 # unops (but some OP_STUB are really null-ary... => baseop)
 ast_unop_localtime,	ast_opc_unop,	localtime(),	OP_LOCALTIME, 	KIDS_OPTIONAL,	emit,	Scalar=String List=Integer Integer Integer Integer Integer Double Integer Integer Integer

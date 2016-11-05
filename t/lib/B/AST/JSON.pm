@@ -199,8 +199,6 @@ sub json_fields {
     );
 }
 
-sub concise_string { sprintf '%s (%d)', $_[0]->json_type, $_[0]->get_op_type }
-
 package B::AST::Statement;
 
 sub json_fields {

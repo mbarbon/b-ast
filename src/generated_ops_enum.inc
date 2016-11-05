@@ -32,6 +32,7 @@ typedef enum {
   ast_baseop_method_named,
   ast_baseop_continue,
   ast_baseop_break,
+  ast_baseop_pushmark,
 
   // Op class: ast_opc_unop
   ast_unop_localtime,
@@ -314,7 +315,7 @@ typedef enum {
   // Op class ranges
 
   ast_baseop_FIRST = ast_baseop_time,
-  ast_baseop_LAST  = ast_baseop_break,
+  ast_baseop_LAST  = ast_baseop_pushmark,
 
   ast_unop_FIRST = ast_unop_localtime,
   ast_unop_LAST  = ast_unop_default,

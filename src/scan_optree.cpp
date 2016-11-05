@@ -295,10 +295,10 @@ static int ast_build_kid_term(pTHX_ OP *kid, OPTreeASTVisitor &visitor, vector<A
     }
 #endif
 
-    // FIXME possibly wrong. PUSHMARK assumed to be an implementation detail that is not
-    //       strictly necessary in an AST listop. Totally speculative.
+    // pushmark is needed for control flow, but redundant in the AST
     if (kid->op_type == OP_PUSHMARK && !(kid->op_flags & OPf_KIDS)) {
         AST_DEBUG_1("ast_build_kid_term skipping kid (%u) since it's an OP_PUSHMARK without kids.\n", ikid);
+        visitor.push_to_block(new AST::Baseop(kid, ast_baseop_pushmark));
         return 0;
     }
 
@@ -657,8 +657,10 @@ static PerlAST::AST::Term *ast_build_grep_or_map(pTHX_ OP *start, OPTreeASTVisit
     LOGOP *mapwhile = cLOGOPx(start);
     LISTOP *mapstart = cLISTOPx(mapwhile->op_first);
 
+    // pushmark is needed for control flow, but redundant in the AST
     OP *pushmark = mapstart->op_first;
     assert(pushmark->op_type == OP_PUSHMARK);
+    visitor.push_to_block(new AST::Baseop(pushmark, ast_baseop_pushmark));
 
     OP *impl = pushmark->op_sibling;
     OP *first_arg = impl->op_sibling; // May be NULL: map $_, ()
@@ -1203,6 +1205,11 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
                 AST_DEBUG("Passing through kid of OP_NULL\n");
                 push_to_block = false;
                 retval = kid_terms[0];
+                if (kid_terms.size() > 1)
+                    delete kid_terms[1];
+            } else if (targ_otype == OP_LIST) {
+                push_to_block = false;
+                retval = new AST::List(kid_terms);
             } else {
                 switch (targ_otype) {
                 case OP_RV2AV:
