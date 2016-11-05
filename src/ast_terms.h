@@ -29,6 +29,7 @@ typedef enum {
     ast_ttype_grep,
     ast_ttype_function_call,
     ast_ttype_empty,
+    ast_ttype_backedge,
     ast_ttype_loop_control,
     ast_ttype_sort
 } ast_term_type;
@@ -618,6 +619,19 @@ namespace PerlAST {
 
             virtual const char *perl_class() const
                 { return "B::AST::StatementSequence"; }
+        };
+
+        // Another dubious class; this tries to be a more
+        // descriptive/structured kind of jump (jumps back to a loop
+        // head)
+        class BackEdge : public Term {
+        public:
+            BackEdge(const Term *loop_head);
+
+            const Term *loop_head;
+
+            virtual const char *perl_class() const
+                { return "B::AST::BackEdge"; }
         };
     } // end namespace PerlAST::AST
 } // end namespace PerlAST

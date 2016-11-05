@@ -181,6 +181,10 @@ class B::AST::StatementSequence : public B::AST::Term {
     std::vector<B::AST::Term *> kids %get;
 };
 
+class B::AST::BackEdge : public B::AST::Term {
+    const B::AST::Term *loop_head %get;
+};
+
 class B::AST::LoopControlStatement : public B::AST::Unop {
     B::AST::Term *get_jump_target() const;
     int get_loop_ctl_type() const;

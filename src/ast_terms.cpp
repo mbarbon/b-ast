@@ -352,6 +352,11 @@ StatementSequence::StatementSequence()
     : Term(NULL, ast_ttype_statementsequence)
 {}
 
+BackEdge::BackEdge(const Term *_loop_head)
+    : Term(NULL, ast_ttype_backedge),
+      loop_head(_loop_head)
+{}
+
 Term::~Term()
 {}
 

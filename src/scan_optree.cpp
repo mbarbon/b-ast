@@ -665,11 +665,6 @@ static PerlAST::AST::Term *ast_build_grep_or_map(pTHX_ OP *start, OPTreeASTVisit
     OP *impl = pushmark->op_sibling;
     OP *first_arg = impl->op_sibling; // May be NULL: map $_, ()
 
-    // Convert map body
-    AST::Term *map_body_term = ast_build(aTHX_ impl, visitor);
-    if (map_body_term == NULL)
-        map_body_term = new AST::Optree(impl);
-
     // Convert the map input list
     vector<AST::Term *> param_vec;
     OP *arg = first_arg;
@@ -682,13 +677,30 @@ static PerlAST::AST::Term *ast_build_grep_or_map(pTHX_ OP *start, OPTreeASTVisit
 
         arg = arg->op_sibling;
     }
+    AST::BasicBlock *head = visitor.current_block();
+    AST::BasicBlock *body_head = visitor.push_and_link_new_block();
 
-    /* XXX flow */
+    // Convert map body
+    AST::Term *map_body_term = ast_build(aTHX_ impl, visitor);
+    if (map_body_term == NULL) {
+        map_body_term = new AST::Optree(impl);
+        visitor.push_to_block(map_body_term);
+    }
 
+    AST::Term *loop;
     if (start->op_type == OP_MAPWHILE)
-        return new AST::Map(start, map_body_term, new AST::List(param_vec));
+        loop = new AST::Map(start, map_body_term, new AST::List(param_vec));
     else
-        return new AST::Grep(start, map_body_term, new AST::List(param_vec));
+        loop = new AST::Grep(start, map_body_term, new AST::List(param_vec));
+    head->push_term(loop);
+    visitor.push_to_block(new AST::BackEdge(loop));
+
+    AST::BasicBlock *body_tail = visitor.current_block();
+    AST::BasicBlock *tail = visitor.push_and_link_new_block();
+    link_blocks(head, tail); // body might not be executed
+    link_blocks(body_tail, body_head); // body is a loop
+
+    return loop;
 }
 
 static PerlAST::AST::Term *ast_build_logop(pTHX_ LOGOP *o, ast_op_type op_type, OPTreeASTVisitor &visitor) {
