@@ -35,10 +35,6 @@ std::string LoopCtlTracker::get_label_from_nextstate(pTHX_ OP *nextstate_op) {
 LoopCtlTracker::LoopCtlTracker() {
 }
 
-const LoopCtlIndex &LoopCtlTracker::get_loop_control_index() const {
-    return loop_control_index;
-}
-
 void LoopCtlTracker::push_loop_scope(const std::string &label) {
     AST_DEBUG_1("LoopCtlTracker: Scope for label='%s'\n", label.c_str());
     loop_control_index[label].push_back(LoopCtlStatementList());

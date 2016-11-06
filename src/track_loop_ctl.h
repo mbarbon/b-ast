@@ -25,8 +25,6 @@ namespace PerlAST {
         void add_loop_control_node(pTHX_ AST::LoopControlStatement *ctrl_term);
         void pop_loop_scope(pTHX_ const std::string &label, AST::Term *loop);
 
-        const LoopCtlIndex &get_loop_control_index() const;
-
     private:
         LoopCtlIndex loop_control_index;
     };

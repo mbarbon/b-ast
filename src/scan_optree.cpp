@@ -343,7 +343,11 @@ static PerlAST::AST::Term *ast_build_block_or_term(pTHX_ OP *start, OPTreeASTVis
         AST::Statement *stmt = new AST::Statement(nextstate, expression);
 
         seq->kids.push_back(stmt);
-        start = start->op_sibling;
+        if (expression->get_type() == ast_ttype_for)
+            // skip over unstack and leaveloop; this should be generalized
+            start = start->op_sibling->op_sibling->op_sibling;
+        else
+            start = start->op_sibling;
     }
 
     if (seq->kids.size())
@@ -1311,10 +1315,6 @@ vector<PerlAST::AST::Term *> analyze_optree(pTHX_ CV *cv) {
 
     OPTreeASTVisitor visitor(aTHX_ cv);
     vector<PerlAST::AST::Term *> tmp = analyze_optree_internal(aTHX_ CvROOT(cv), visitor);
-
-    if (!visitor.get_loop_control_tracker().get_loop_control_index().empty()) {
-        warn("Some loop control statements' jump targets could not be statically resolved");
-    }
 
     LEAVE;
 

@@ -18,6 +18,15 @@ sub json_value {
 
 sub json_type { substr ref($_[0]), 8 }
 
+package B::AST::Empty;
+
+sub json_fields { }
+
+package B::AST::Optree;
+
+# here to avoid test die()ing without output, but it should never be generated
+sub json_fields { }
+
 package B::AST::IVConstant;
 
 sub json_fields { value => $_[0]->get_integer_value }
@@ -76,6 +85,33 @@ sub json_fields {
     );
 }
 
+package B::AST::List;
+
+sub json_fields {
+    items => [map $_->json_value, $_[0]->get_kids]
+}
+
+package B::AST::LoopControlStatement;
+
+sub json_fields {
+    my ($self) = @_;
+    my $target = $self->get_jump_target;
+
+    return (
+        ctl_type => $self->get_loop_ctl_type,
+        !$target ? () : (
+            target_type => $target->json_type,
+        ),
+        !$self->has_label ? () : (
+            $self->label_is_dynamic ? (
+                label_expression => ($self->get_kids)[0],
+            ) : (
+                label => $self->get_label,
+            ),
+        ),
+    );
+}
+
 package B::AST::Statement;
 
 sub json_fields {
@@ -83,6 +119,47 @@ sub json_fields {
         body => (map $_->json_value, $_[0]->get_kids)[0],
         file => $_[0]->get_file,
         line => $_[0]->get_line,
+    );
+}
+
+package B::AST::BareBlock;
+
+sub json_fields {
+    return (
+        body         => $_[0]->get_body->json_value,
+        continuation => $_[0]->get_continuation->json_value,
+    );
+}
+
+package B::AST::While;
+
+sub json_fields {
+    return (
+        condition    => $_[0]->get_condition->json_value,
+        body         => $_[0]->get_body->json_value,
+        continuation => $_[0]->get_continuation->json_value,
+    );
+}
+
+package B::AST::Foreach;
+
+sub json_fields {
+    return (
+        iterator     => $_[0]->get_iterator->json_value,
+        expression   => $_[0]->get_expression->json_value,
+        body         => $_[0]->get_body->json_value,
+        continuation => $_[0]->get_continuation->json_value,
+    );
+}
+
+package B::AST::For;
+
+sub json_fields {
+    return (
+        init         => $_[0]->get_init->json_value,
+        condition    => $_[0]->get_condition->json_value,
+        step         => $_[0]->get_step->json_value,
+        body         => $_[0]->get_body->json_value,
     );
 }
 

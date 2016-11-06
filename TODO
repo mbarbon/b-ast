@@ -1,0 +1,3 @@
+- generalize the skipping logic for for (;;) loops
+  (now we have two places iterating using ->op_sibling and using
+   custom logic, and I might have missed some)

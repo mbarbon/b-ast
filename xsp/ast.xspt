@@ -33,7 +33,7 @@
 %typemap{B::AST::Term *}{object}{
     %name{ast_term};
     %xs_type{O_AST};
-    %xs_output_code{% sv_setref_pv( $arg, xsp_constructor_class($var->perl_class()), (void*)$var ); %};
+    %xs_output_code{% if ($var) { sv_setref_pv( $arg, xsp_constructor_class($var->perl_class()), (void*)$var ); } %};
 };
 
 %typemap{const B::AST::Term *}{ast_term};
