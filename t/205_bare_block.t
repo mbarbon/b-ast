@@ -11,7 +11,8 @@ EOT
 -
   label: L1
   predecessors: []
-  sequence: []
+  sequence:
+    - 'VariableDeclaration ($b)'
   successors:
     - L2
   type: BasicBlock
@@ -19,15 +20,6 @@ EOT
   label: L2
   predecessors:
     - L1
-  sequence:
-    - 'VariableDeclaration ($b)'
-  successors:
-    - L3
-  type: BasicBlock
--
-  label: L3
-  predecessors:
-    - L2
   sequence: []
   successors: []
   type: BasicBlock
