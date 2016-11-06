@@ -4,29 +4,40 @@
 #include "EXTERN.h"
 #include "perl.h"
 
-#include "ast_terms.h"
-
-#include <list>
+#include <vector>
 #include <string>
-#include <tr1/unordered_map>
 
 namespace PerlAST {
-    typedef std::list<AST::LoopControlStatement *> LoopCtlStatementList;
-    typedef std::list<LoopCtlStatementList> LoopCtlScopeStack;
-    typedef std::tr1::unordered_map<std::string, LoopCtlScopeStack> LoopCtlIndex;
+    namespace AST {
+        class Term;
+        class LoopControlStatement;
+    }
 
     class LoopCtlTracker {
     public:
         LoopCtlTracker();
 
-        static std::string get_label_from_nextstate(pTHX_ OP *nextstate_op);
+        static std::string get_label_from_nextstate(pTHX_ COP *nextstate_op);
 
-        void push_loop_scope(const std::string &label);
+        void push_loop_scope(pTHX_ COP *nextstate_op);
         void add_loop_control_node(pTHX_ AST::LoopControlStatement *ctrl_term);
-        void pop_loop_scope(pTHX_ const std::string &label, AST::Term *loop);
+        void pop_loop_scope(pTHX_ AST::Term *loop);
 
     private:
-        LoopCtlIndex loop_control_index;
+        typedef std::vector<AST::LoopControlStatement *> LoopControlList;
+
+        struct LoopScope {
+            std::string label;
+            LoopControlList pending_statements;
+
+            LoopScope(const std::string &_label)
+                : label(_label)
+            {}
+        };
+
+        typedef std::vector<LoopScope> LoopStack;
+
+        LoopStack scopes;
     };
 }
 

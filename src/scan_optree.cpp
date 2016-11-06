@@ -201,8 +201,8 @@ namespace PerlAST {
             return loop_control_tracker;
         }
 
-        OP *get_last_nextstate() const {
-            return last_nextstate;
+        COP *get_last_nextstate() const {
+            return (COP *) last_nextstate;
         }
 
         void set_last_nextstate(OP *nextstate_op) {
@@ -525,17 +525,12 @@ static PerlAST::AST::Term *ast_build_loop(pTHX_ OP *start, PerlAST::AST::Term *i
 
     // Maybe setup loop scope tracking
     LoopCtlTracker &loop_ctl = visitor.get_loop_control_tracker();
-    OP *loop_nextstate = NULL;
-    string loop_label;
     // Modifier-loops don't behave as full loops
     const bool is_full_loop = start->op_type == OP_LEAVELOOP;
     if (is_full_loop) {
-        loop_nextstate = visitor.get_last_nextstate();
-        loop_label = LoopCtlTracker::get_label_from_nextstate(aTHX_ loop_nextstate);
-        AST_DEBUG_2("LOOP LABEL: %s %p\n", loop_label.c_str(), start);
-        loop_ctl.push_loop_scope(loop_label);
-        if (loop_label.length() != 0)
-            loop_ctl.push_loop_scope(string(""));
+        COP *loop_nextstate = visitor.get_last_nextstate();
+        AST_DEBUG_2("LOOP LABEL: %s %p\n", LoopCtlTracker::get_label_from_nextstate(aTHX_ loop_nextstate).c_str(), start);
+        loop_ctl.push_loop_scope(aTHX_ loop_nextstate);
     }
 
     AST::Term *retval;
@@ -548,13 +543,9 @@ static PerlAST::AST::Term *ast_build_loop(pTHX_ OP *start, PerlAST::AST::Term *i
     else
         retval = ast_build_block(aTHX_ start, body, cont, visitor);
 
-    // Maybe tear down loop scope tracking
-    if (loop_nextstate != NULL) { // remembered for a reason
-        // Fixup loop control statements if necessary
-        loop_ctl.pop_loop_scope(aTHX_ loop_label, retval);
-        if (loop_label.length() != 0)
-            loop_ctl.pop_loop_scope(aTHX_ string(""), retval);
-    }
+    // Fixup loop control statements if necessary
+    if (is_full_loop)
+        loop_ctl.pop_loop_scope(aTHX_ retval);
 
     return retval;
 }

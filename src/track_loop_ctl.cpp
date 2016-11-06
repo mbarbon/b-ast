@@ -1,6 +1,7 @@
 #include "track_loop_ctl.h"
 #include "ppport.h"
 #include "ast_debug.h"
+#include "ast_terms.h"
 
 using namespace PerlAST;
 using namespace std;
@@ -10,21 +11,19 @@ using namespace std;
 // - when encountering a next/last/redo, push the AST node into map[LABEL].back()
 // - when done with the loop parsing, pop the list from the stack and fix all references
 
-std::string LoopCtlTracker::get_label_from_nextstate(pTHX_ OP *nextstate_op) {
+std::string LoopCtlTracker::get_label_from_nextstate(pTHX_ COP *nextstate_op) {
     assert(nextstate_op->op_type == OP_NEXTSTATE);
-
-    COP *ns = (COP *)nextstate_op;
 
     // *sigh* about the strlen dance
     STRLEN cop_label_len = 0;
 
     string retval("");
 #ifdef CopLABEL_len
-    const char *cop_label = CopLABEL_len((COP *)nextstate_op, &cop_label_len);
+    const char *cop_label = CopLABEL_len(nextstate_op, &cop_label_len);
     if (cop_label != NULL)
         retval = string(cop_label, cop_label_len);
 #else
-    const char *cop_label = CopLABEL((COP *)nextstate_op);
+    const char *cop_label = CopLABEL(nextstate_op);
     if (cop_label != NULL)
         retval = string(cop_label, strlen(cop_label));
 #endif
@@ -35,47 +34,45 @@ std::string LoopCtlTracker::get_label_from_nextstate(pTHX_ OP *nextstate_op) {
 LoopCtlTracker::LoopCtlTracker() {
 }
 
-void LoopCtlTracker::push_loop_scope(const std::string &label) {
+void LoopCtlTracker::push_loop_scope(pTHX_ COP *nextstate_op) {
+    string label = get_label_from_nextstate(aTHX_ nextstate_op);
     AST_DEBUG_1("LoopCtlTracker: Scope for label='%s'\n", label.c_str());
-    loop_control_index[label].push_back(LoopCtlStatementList());
-    AST_DEBUG_1("LoopCtlTracker: N scopes: %i\n", (int)loop_control_index[label].size());
+    scopes.push_back(LoopScope(label));
+    AST_DEBUG_1("LoopCtlTracker: N scopes: %i\n", (int)scopes.size());
 }
 
 void LoopCtlTracker::add_loop_control_node(pTHX_ AST::LoopControlStatement *ctrl_term) {
     AST_DEBUG_1("LoopCtlTracker; Adding ctl statment for label='%s'\n", ctrl_term->get_label().c_str());
+    // no loop, this will remain untracked
+    if (scopes.empty())
+        return;
     const std::string label = ctrl_term->get_label();
-    LoopCtlScopeStack &ss = loop_control_index[label];
-    if (!ss.empty()) {
-        loop_control_index[label].back().push_back(ctrl_term);
+    if (label.empty()) {
+        scopes.back().pending_statements.push_back(ctrl_term);
+    } else {
+        typedef LoopStack::reverse_iterator riter;
+        for (riter it = scopes.rbegin(), en = scopes.rend(); it != en; ++it) {
+            if (it->label == label) {
+                it->pending_statements.push_back(ctrl_term);
+                break;
+            }
+        }
     }
-    //else {
-    //  warn("Found dangling loop control statement");
-    //}
 }
 
 
-void LoopCtlTracker::pop_loop_scope(pTHX_ const std::string &label, AST::Term *loop) {
-    AST_DEBUG_2("LoopCtlTracker: End scope for label='%s' (N scopes: %i)\n", label.c_str(), (int)loop_control_index[label].size());
+void LoopCtlTracker::pop_loop_scope(pTHX_ AST::Term *loop) {
+    assert(!scopes.empty());
+    AST_DEBUG_2("LoopCtlTracker: End scope for label='%s' (N scopes: %i)\n", scopes.back().label.c_str(), scopes.size());
 #ifndef NDEBUG
     ast_term_type t = loop->get_type();
     assert(   t == ast_ttype_bareblock || t == ast_ttype_while
            || t == ast_ttype_for       || t == ast_ttype_foreach);
 #endif
 
-    assert(loop_control_index.count(label) > 0);
-    LoopCtlScopeStack &scope_stack = loop_control_index[label];
-    assert(!scope_stack.empty());
+    LoopControlList &pending = scopes.back().pending_statements;
+    for (LoopControlList::iterator it = pending.begin(), en = pending.end(); it != en; ++it)
+        (*it)->set_jump_target(loop);
 
-    LoopCtlStatementList &list = scope_stack.back();
-
-    if (!list.empty()) {
-        LoopCtlStatementList::iterator it;
-        for (it = list.begin(); it != list.end(); ++it) {
-            (*it)->set_jump_target(loop);
-        }
-    }
-
-    scope_stack.pop_back();
-    if (scope_stack.empty())
-        loop_control_index.erase(label);
+    scopes.pop_back();
 }
