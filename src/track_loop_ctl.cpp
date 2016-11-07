@@ -2,6 +2,7 @@
 #include "ppport.h"
 #include "ast_debug.h"
 #include "ast_terms.h"
+#include "ast_basicblock.h"
 
 using namespace PerlAST;
 using namespace std;
@@ -41,25 +42,32 @@ void LoopCtlTracker::push_loop_scope(pTHX_ COP *nextstate_op) {
     AST_DEBUG_1("LoopCtlTracker: N scopes: %i\n", (int)scopes.size());
 }
 
-void LoopCtlTracker::add_loop_control_node(pTHX_ AST::LoopControlStatement *ctrl_term) {
+void LoopCtlTracker::add_loop_control_node(pTHX_ AST::LoopControlStatement *ctrl_term, AST::BasicBlock *ctrl_block) {
     AST_DEBUG_1("LoopCtlTracker; Adding ctl statment for label='%s'\n", ctrl_term->get_label().c_str());
     // no loop, this will remain untracked
     if (scopes.empty())
         return;
     const std::string label = ctrl_term->get_label();
     if (label.empty()) {
-        scopes.back().pending_statements.push_back(ctrl_term);
+        scopes.back().pending_statements.push_back(ControlItem(ctrl_term, ctrl_block));
     } else {
         typedef LoopStack::reverse_iterator riter;
         for (riter it = scopes.rbegin(), en = scopes.rend(); it != en; ++it) {
             if (it->label == label) {
-                it->pending_statements.push_back(ctrl_term);
+                it->pending_statements.push_back(ControlItem(ctrl_term, ctrl_block));
                 break;
             }
         }
     }
 }
 
+void LoopCtlTracker::set_control_blocks(AST::BasicBlock *next, AST::BasicBlock *last, AST::BasicBlock *redo) {
+    LoopScope &current = scopes.back();
+
+    current.next_block = next;
+    current.last_block = last;
+    current.redo_block = redo;
+}
 
 void LoopCtlTracker::pop_loop_scope(pTHX_ AST::Term *loop) {
     assert(!scopes.empty());
@@ -71,8 +79,20 @@ void LoopCtlTracker::pop_loop_scope(pTHX_ AST::Term *loop) {
 #endif
 
     LoopControlList &pending = scopes.back().pending_statements;
-    for (LoopControlList::iterator it = pending.begin(), en = pending.end(); it != en; ++it)
-        (*it)->set_jump_target(loop);
+    for (LoopControlList::iterator it = pending.begin(), en = pending.end(); it != en; ++it) {
+        it->statement->set_jump_target(loop);
+        switch (it->statement->get_loop_ctl_type()) {
+        case AST::LoopControlStatement::ast_lctl_next:
+            link_blocks(it->block, scopes.back().next_block);
+            break;
+        case AST::LoopControlStatement::ast_lctl_last:
+            link_blocks(it->block, scopes.back().last_block);
+            break;
+        case AST::LoopControlStatement::ast_lctl_redo:
+            link_blocks(it->block, scopes.back().redo_block);
+            break;
+        }
+    }
 
     scopes.pop_back();
 }

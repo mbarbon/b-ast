@@ -199,6 +199,13 @@ sub json_fields {
     );
 }
 
+sub concise_string {
+    sprintf '%s (%s): %s',
+        $_[0]->json_type,
+        $_[0]->get_loop_ctl_type,
+        $_[0]->get_label
+}
+
 package B::AST::Statement;
 
 sub json_fields {

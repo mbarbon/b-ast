@@ -455,8 +455,9 @@ static PerlAST::AST::For *ast_build_for(pTHX_ OP *start, PerlAST::AST::Term *ini
                                 ast_build_empty(aTHX_ visitor);
     AST::BasicBlock *cond_tail = visitor.current_block();
 
-    visitor.push_and_link_new_block();
+    AST::BasicBlock *redo = visitor.push_and_link_new_block();
     ast_body = ast_build_body(aTHX_ body, visitor);
+    AST::BasicBlock *next = visitor.current_block();
     ast_step = step ? ast_build(aTHX_ step, visitor) :
                       ast_build_empty(aTHX_ visitor);
 
@@ -469,6 +470,8 @@ static PerlAST::AST::For *ast_build_for(pTHX_ OP *start, PerlAST::AST::Term *ini
     link_blocks(body_tail, cond_head);
     link_blocks(cond_tail, tail);
 
+    visitor.get_loop_control_tracker().set_control_blocks(next, visitor.current_block(), redo);
+
     return retval;
 }
 
@@ -478,6 +481,7 @@ static PerlAST::AST::While *ast_build_while(pTHX_ OP *start, LOGOP *condition, O
     bool is_do = false;
     AST::BasicBlock *head = visitor.current_block();
     AST::BasicBlock *cond_head = visitor.push_new_block();
+    AST::BasicBlock *next = cond_head;
 
     if (condition) {
         is_do = condition->op_other == cUNOPx(start)->op_first->op_next;
@@ -496,6 +500,8 @@ static PerlAST::AST::While *ast_build_while(pTHX_ OP *start, LOGOP *condition, O
     ast_body = ast_build_body(aTHX_ body, visitor);
     if (cont && !visitor.last_block_is_empty())
         visitor.push_and_link_new_block();
+    if (cont)
+        next = visitor.current_block();
     ast_cont = ast_build_body(aTHX_ cont, visitor);
 
     AST::While *retval = new AST::While(start, ast_condition, is_until, is_do,
@@ -515,6 +521,9 @@ static PerlAST::AST::While *ast_build_while(pTHX_ OP *start, LOGOP *condition, O
     link_blocks(body_tail, cond_head);
     link_blocks(cond_tail, tail);
 
+    if (!is_do)
+        visitor.get_loop_control_tracker().set_control_blocks(next, tail, body_head);
+
     return retval;
 }
 
@@ -523,12 +532,16 @@ static PerlAST::AST::BareBlock *ast_build_block(pTHX_ OP *start, OP *body, OP *c
 
     if (!visitor.last_block_is_empty())
         visitor.push_and_link_new_block();
+    AST::BasicBlock *redo = visitor.current_block();
     ast_body = ast_build_body(aTHX_ body, visitor);
     if (cont && !visitor.last_block_is_empty())
         visitor.push_and_link_new_block();
+    AST::BasicBlock *next = visitor.current_block();
     ast_cont = ast_build_body(aTHX_ cont, visitor);
     if (!visitor.last_block_is_empty())
         visitor.push_and_link_new_block();
+
+    visitor.get_loop_control_tracker().set_control_blocks(next, visitor.current_block(), redo);
 
     return new PerlAST::AST::BareBlock(start, ast_body, ast_cont);
 }
@@ -586,10 +599,13 @@ static AST::Term *ast_build_foreach(pTHX_ OP *start, OP *body, OP *cont, OPTreeA
     }
 
     AST::BasicBlock *head = visitor.push_and_link_new_block();
+    AST::BasicBlock *next = head;
     AST::BasicBlock *body_head = visitor.push_and_link_new_block();
     ast_body = ast_build_body(aTHX_ body, visitor);
     if (cont && !visitor.last_block_is_empty())
         visitor.push_and_link_new_block();
+    if (cont)
+        next = visitor.current_block();
     ast_cont = ast_build_body(aTHX_ cont, visitor);
 
     AST::Foreach *retval = new AST::Foreach(start, ast_iterator, ast_expression, ast_body, ast_cont);
@@ -600,6 +616,8 @@ static AST::Term *ast_build_foreach(pTHX_ OP *start, OP *body, OP *cont, OPTreeA
     AST::BasicBlock *tail = visitor.push_new_block();
     link_blocks(body_tail, head);
     link_blocks(head, tail);
+
+    visitor.get_loop_control_tracker().set_control_blocks(next, tail, body_head);
 
     return retval;
 }
@@ -1511,8 +1529,10 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
         AST::LoopControlStatement *lcs
             = new AST::LoopControlStatement(aTHX_ o, kid_terms.empty() ? NULL : kid_terms[0]);
         retval = lcs;
+        visitor.push_to_block(retval);
         if (!lcs->label_is_dynamic())
-            visitor.get_loop_control_tracker().add_loop_control_node(aTHX_ lcs);
+            visitor.get_loop_control_tracker().add_loop_control_node(aTHX_ lcs, visitor.current_block());
+        visitor.push_new_block();
         break;
     }
 
