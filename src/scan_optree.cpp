@@ -105,7 +105,7 @@ namespace PerlAST {
             if (otype == OP_NULL && (o->op_flags & OPf_KIDS)) {
                 unsigned int ktype = cUNOPo->op_first->op_type;
 
-                astify_kid = ktype == OP_SCOPE;
+                astify_kid = ktype == OP_SCOPE || ktype == OP_LEAVE;
             }
 
             if (otype == OP_NEXTSTATE) {
@@ -129,7 +129,9 @@ namespace PerlAST {
             /* Attempt JIT if the right OP type. Don't recurse if so. */
             if (IS_AST_COMPATIBLE_ROOT_OP_TYPE(otype) || astify_kid) {
                 OP *source = astify_kid ? cUNOPo->op_first : o;
+                OP *saved_nextstate = last_nextstate;
                 PerlAST::AST::Term *ast = ast_build(aTHX_ source, *this);
+                last_nextstate = saved_nextstate;
                 if (ast) {
                     if (last_nextstate && last_nextstate->op_sibling == o)
                         create_statement(aTHX_ ast);
