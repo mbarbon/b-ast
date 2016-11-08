@@ -13,6 +13,8 @@
   || (int)otype == OP_ADD \
   || (int)otype == OP_AEACH \
   || (int)otype == OP_AELEM \
+  || (int)otype == OP_AELEMFAST \
+  || (int)otype == OP_AELEMFAST_LEX \
   || (int)otype == OP_AKEYS \
   || (int)otype == OP_ALARM \
   || (int)otype == OP_ANDASSIGN \
@@ -45,6 +47,7 @@
   || (int)otype == OP_CONCAT \
   || (int)otype == OP_COND_EXPR \
   || (int)otype == OP_CONNECT \
+  || (int)otype == OP_CONST \
   || (int)otype == OP_CONTINUE \
   || (int)otype == OP_COS \
   || (int)otype == OP_CRYPT \
@@ -137,6 +140,8 @@
   || (int)otype == OP_GSERVENT \
   || (int)otype == OP_GSOCKOPT \
   || (int)otype == OP_GT \
+  || (int)otype == OP_GV \
+  || (int)otype == OP_GVSV \
   || (int)otype == OP_HELEM \
   || (int)otype == OP_HEX \
   || (int)otype == OP_HSLICE \
@@ -198,6 +203,7 @@
   || (int)otype == OP_NEGATE \
   || (int)otype == OP_NEXT \
   || (int)otype == OP_NOT \
+  || (int)otype == OP_NULL \
   || (int)otype == OP_OCT \
   || (int)otype == OP_ONCE \
   || (int)otype == OP_OPEN \

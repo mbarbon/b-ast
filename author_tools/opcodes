@@ -19,8 +19,7 @@
 #! jittable_root_ops=OP_I_LT OP_I_GT OP_I_LE OP_I_GE OP_I_EQ OP_I_NE OP_I_NCMP
 #! jittable_root_ops=OP_MAPWHILE OP_GREPWHILE OP_ENTERSUB
 #! jittable_root_ops=OP_NEXT OP_LAST OP_REDO
-#
-#! jittable_ops=OP_CONST OP_NULL OP_GVSV OP_AELEMFAST OP_AELEMFAST_LEX OP_GV
+#! jittable_root_ops=OP_CONST OP_NULL OP_GVSV OP_AELEMFAST OP_AELEMFAST_LEX OP_GV
 
 # Return types below are separated between Scalar and List context (Context=Type)
 # and in the absence of an =, the type goes for both contexts. The Numeric type

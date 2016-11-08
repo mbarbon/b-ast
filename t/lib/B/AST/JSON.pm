@@ -39,6 +39,10 @@ package B::AST::NVConstant;
 
 sub json_fields { value => $_[0]->get_floating_value }
 
+package B::AST::UndefConstant;
+
+sub json_fields { }
+
 package B::AST::VariableDeclaration;
 
 sub json_fields {
@@ -71,6 +75,25 @@ sub json_fields {
     );
 }
 
+package B::AST::Baseop;
+
+sub json_fields {
+    return (
+        context       => $_[0]->context,
+        op            => $_[0]->get_op_type,
+    );
+}
+
+package B::AST::Unop;
+
+sub json_fields {
+    return (
+        context       => $_[0]->context,
+        term          => $_[0]->get_kid->json_value,
+        op            => $_[0]->get_op_type,
+    );
+}
+
 package B::AST::Binop;
 
 sub json_fields {
@@ -82,6 +105,16 @@ sub json_fields {
         right         => $right,
         op            => $_[0]->get_op_type,
         is_assignment => $_[0]->is_assignment_form ? 1 : 0,
+    );
+}
+
+package B::AST::Listop;
+
+sub json_fields {
+    return (
+        context       => $_[0]->context,
+        terms         => [map $_->json_value, $_[0]->get_kids],
+        op            => $_[0]->get_op_type,
     );
 }
 
@@ -119,6 +152,14 @@ sub json_fields {
         body => (map $_->json_value, $_[0]->get_kids)[0],
         file => $_[0]->get_file,
         line => $_[0]->get_line,
+    );
+}
+
+package B::AST::Block;
+
+sub json_fields {
+    return (
+        body         => ($_[0]->get_kids)[0]->json_value,
     );
 }
 
