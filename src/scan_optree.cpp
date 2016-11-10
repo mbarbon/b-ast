@@ -729,13 +729,13 @@ static PerlAST::AST::Term *ast_build_sub_call(pTHX_ LISTOP *entersub, OPTreeASTV
 
     assert(args.size() > 0);
 
-    // SubCall vs. MethodCall: MethodCall has an OP_METHOD(_NAMED) at end
+    // SubCall vs. MethodCall: MethodCall has an OP_METHOD(_NAMED) at end,
+    // which gets converted to a string constant
     PerlAST::AST::Term *cv_source = args.back();
     args.pop_back();
 
-    if (cv_source->get_type() == ast_ttype_op
-        && (((PerlAST::AST::Op *)cv_source)->get_op_type() == ast_unop_method
-            || ((PerlAST::AST::Op *)cv_source)->get_op_type() == ast_baseop_method_named)) {
+    if (entersub->op_last->op_type == OP_METHOD ||
+            entersub->op_last->op_type == OP_METHOD_NAMED) {
         assert(args.size() > 0);
 
         PerlAST::AST::Term *invocant = args.front();
@@ -1217,6 +1217,14 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
             visitor.get_loop_control_tracker().add_loop_control_node(aTHX_ lcs);
         break;
     }
+
+    case OP_METHOD_NAMED:
+        retval = new AST::StringConstant(aTHX_ o, cSVOPx_sv(o));
+        break;
+
+    case OP_METHOD:
+        retval = ast_build(aTHX_ cUNOPx(o)->op_first, visitor);
+        break;
 
     // Special cases, not auto-generated
     EMIT_LISTOP_CODE(OP_SCHOP, ast_listop_chop)

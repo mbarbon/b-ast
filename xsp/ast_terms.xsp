@@ -153,7 +153,9 @@ class B::AST::SubCall : public B::AST::Term {
     std::vector<B::AST::Term *> get_arguments();
 };
 
-class B::AST::MethodCall : public B::AST::SubCall {
+class B::AST::MethodCall : public B::AST::Term {
+    %name{get_method} B::AST::Term *get_cv_source();
+    std::vector<B::AST::Term *> get_arguments();
     B::AST::Term *get_invocant();
 };
 

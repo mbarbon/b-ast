@@ -54,7 +54,7 @@ ast_baseop_wait,		ast_opc_baseop,  wait(),		OP_WAIT,	0,	emit,	Integer
 ast_baseop_getppid,	ast_opc_baseop,  getppid(),	OP_GETPPID,	0,	emit,	Integer
 ast_baseop_anoncode,	ast_opc_baseop,  anon CV constr,	OP_ANONCODE,	0,	emit,	Any
 ast_baseop_fork,		ast_opc_baseop,  fork(),		OP_FORK,	0,	emit,	Any # (integer or undef)
-ast_baseop_method_named, ast_opc_baseop,  const meth lkup,OP_METHOD_NAMED,0,	emit,	Any # always CV?
+ast_baseop_method_named, ast_opc_baseop,  const meth lkup,OP_METHOD_NAMED,0,	,	Any # always CV?
 ast_baseop_continue,	ast_opc_baseop,	continue,	OP_CONTINUE,	0,	emit,	Empty # really, never returns
 ast_baseop_break,	ast_opc_baseop,	break,		OP_BREAK,	0,	emit,	Empty # really, never returns
 
@@ -188,7 +188,7 @@ ast_unop_lock,		ast_opc_unop,	lock(),		OP_LOCK,	0,	emit,	Any
 ast_unop_readline,	ast_opc_unop,	readlone(),	OP_READLINE,	KIDS_OPTIONAL,	emit,	Any
 ast_unop_require,	ast_opc_unop,	require(),	OP_REQUIRE,	KIDS_OPTIONAL,	emit,	Any
 ast_unop_dofile,		ast_opc_unop,	do 'file',	OP_DOFILE,	0,	emit,	Any
-ast_unop_method,		ast_opc_unop,	dyn meth lkup,	OP_METHOD,	0,	emit,	Any # always CV?
+ast_unop_method,		ast_opc_unop,	dyn meth lkup,	OP_METHOD,	0,	,	Any # always CV?
 ast_unop_default,	ast_opc_unop,	default{},	OP_LEAVEWHEN,	0,	,	Scalar=Any List=List[Any] # OP_LEAVEWHEN assigned to when(){} also
 # Not Unops. Handled as separate Term type.
 #ast_unop_next,		ast_opc_unop,	next,		OP_NEXT,	KIDS_OPTIONAL,	,	Any # really never returns...

@@ -39,6 +39,10 @@ package B::AST::NVConstant;
 
 sub json_fields { value => $_[0]->get_floating_value }
 
+package B::AST::StringConstant;
+
+sub json_fields { value => $_[0]->get_string_value }
+
 package B::AST::UndefConstant;
 
 sub json_fields { }
@@ -122,6 +126,21 @@ package B::AST::List;
 
 sub json_fields {
     items => [map $_->json_value, $_[0]->get_kids]
+}
+
+package B::AST::SubCall;
+
+sub json_fields {
+    sub       => $_[0]->get_cv_source->json_value,
+    arguments => [map $_->json_value, $_[0]->get_arguments],
+}
+
+package B::AST::MethodCall;
+
+sub json_fields {
+    invocant  => $_[0]->get_invocant->json_value,
+    method    => $_[0]->get_method->json_value,
+    arguments => [map $_->json_value, $_[0]->get_arguments],
 }
 
 package B::AST::LoopControlStatement;

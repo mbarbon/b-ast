@@ -67,6 +67,7 @@ void ast_define_constants(pTHX) {
     INT_CONST(ast_sigil_array);
     INT_CONST(ast_sigil_hash);
     INT_CONST(ast_sigil_glob);
+    INT_CONST(ast_sigil_code);
 
     INT_CONST(ast_opc_baseop);
     INT_CONST(ast_opc_unop);
