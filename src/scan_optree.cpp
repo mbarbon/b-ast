@@ -936,7 +936,7 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
 
     case OP_RV2CV: {
         if (cUNOPo->op_first->op_type == OP_GV)
-            retval = new AST::Global(o, ast_sigil_code, gv_name(aTHX_ o));
+            retval = new AST::Global(o, ast_sigil_code, gv_name(aTHX_ cUNOPo->op_first));
         else
             retval = new AST::Unop(o, ast_unop_cv_deref, ast_build(aTHX_ cUNOPo->op_first, visitor));
 
@@ -946,7 +946,7 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
     case OP_RV2AV: {
         OP *kid = cUNOPo->op_first;
         if (kid->op_type == OP_GV)
-            retval = new AST::Global(o, ast_sigil_array, gv_name(aTHX_ o));
+            retval = new AST::Global(o, ast_sigil_array, gv_name(aTHX_ kid));
         else if (kid->op_type == OP_CONST) {
             // It's a constant array such as in: $x = [1..3]
             // TODO consider whether we want to represent this differently in the AST
@@ -963,7 +963,7 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
 
     case OP_RV2HV: {
         if (cUNOPo->op_first->op_type == OP_GV)
-            retval = new AST::Global(o, ast_sigil_hash, gv_name(aTHX_ o));
+            retval = new AST::Global(o, ast_sigil_hash, gv_name(aTHX_ cUNOPo->op_first));
         else
             retval = new AST::Unop(o, ast_unop_hv_deref, ast_build(aTHX_ cUNOPo->op_first, visitor));
 
@@ -972,7 +972,7 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
 
     case OP_RV2GV: {
         if (cUNOPo->op_first->op_type == OP_GV)
-            retval = new AST::Global(o, ast_sigil_glob, gv_name(aTHX_ o));
+            retval = new AST::Global(o, ast_sigil_glob, gv_name(aTHX_ cUNOPo->op_first));
         else
             retval = new AST::Unop(o, ast_unop_gv_deref, ast_build(aTHX_ cUNOPo->op_first, visitor));
 

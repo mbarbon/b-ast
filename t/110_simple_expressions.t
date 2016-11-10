@@ -115,4 +115,53 @@ statements:
 type: StatementSequence
 EOT
 
+op_ast_eq_or_diff(<<'EOT', <<'EOT');
+no strict;
+no warnings;
+$a;
+@b;
+%c;
+*d;
+EOT
+---
+statements:
+  -
+    body:
+      context: ast_context_scalar
+      name: a
+      sigil: ast_sigil_scalar
+      type: Global
+    file: TEST
+    line: 3
+    type: Statement
+  -
+    body:
+      context: ast_context_void
+      name: b
+      sigil: ast_sigil_array
+      type: Global
+    file: TEST
+    line: 4
+    type: Statement
+  -
+    body:
+      context: ast_context_void
+      name: c
+      sigil: ast_sigil_hash
+      type: Global
+    file: TEST
+    line: 5
+    type: Statement
+  -
+    body:
+      context: ast_context_scalar
+      name: d
+      sigil: ast_sigil_glob
+      type: Global
+    file: TEST
+    line: 6
+    type: Statement
+type: StatementSequence
+EOT
+
 done_testing();
