@@ -30,7 +30,7 @@ static PerlAST::AST::Value *analyze_cv(pTHX_ CV *cv) {
 
 static PerlAST::AST::Value *analyze_value_internal(pTHX_ SV *sv) {
     switch (SvTYPE(sv)) {
-#if PERL_VERSION < 10 || PERL_SUBVERSION < 1
+#if PERL_VERSION < 10 || (PERL_VERSION == 10 && PERL_SUBVERSION < 1)
     case SVt_RV:
 #endif
     case SVt_IV:
