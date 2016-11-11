@@ -223,6 +223,13 @@ sub json_fields {
     );
 }
 
+package B::AST::ListTransformation;
+
+sub json_fields {
+    body       => $_[0]->get_body->json_value,
+    parameters => $_[0]->get_parameters->json_value,
+}
+
 package B::AST::StatementSequence;
 
 sub json_fields {
