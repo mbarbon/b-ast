@@ -29,7 +29,8 @@ typedef enum {
     ast_ttype_grep,
     ast_ttype_function_call,
     ast_ttype_empty,
-    ast_ttype_loop_control
+    ast_ttype_loop_control,
+    ast_ttype_sort
 } ast_term_type;
 
 typedef enum {
@@ -507,6 +508,53 @@ namespace PerlAST {
             bool _label_is_dynamic;
             bool _label_is_utf8;
             std::string label;
+        };
+
+        class Sort : public Term {
+        public:
+            enum ast_sort_algorithm_type {
+                ast_sort_merge,
+                ast_sort_quick
+            };
+
+            Sort(OP *p_op, Term *cmp_fun, const std::vector<Term *> & args);
+
+            bool is_reverse_sort() const { return needs_reverse; }
+            // Note that "integer sort" should imply "numeric sort" in the sense of
+            // "@a = sort {$a <=> $b} @a" is a standard numeric sort, whereas
+            // "use integer; @a = sort {$a <=> $b} @a" is a standard integer
+            // sort.
+            bool is_std_numeric_sort() const { return is_numeric; }
+            bool is_std_integer_sort() const { return is_integer_sort; }
+            bool is_in_place_sort() const { return is_inplace; }
+            bool is_guaranteed_stable_sort() const { return is_guaranteed_stable; }
+
+            ast_sort_algorithm_type get_sort_algorithm() const { return sort_algo; }
+
+            Term *get_cmp_function() const { return cmp_function; }
+            const std::vector<Term *> &get_arguments() const { return arguments; }
+
+            void set_reverse_sort(bool is_reverse) { needs_reverse = is_reverse; }
+            void set_std_numeric_sort(bool is_std_numeric) { is_numeric = is_std_numeric; }
+            void set_std_integer_sort(bool is_std_int) { is_integer_sort = is_std_int; }
+            void set_in_place_sort(bool is_in_place) { is_inplace = is_in_place; }
+            void set_guaranteed_stable_sort(bool stable_sort_required) { is_guaranteed_stable = stable_sort_required; }
+
+            void set_sort_algorithm(ast_sort_algorithm_type t) { sort_algo = t; }
+
+            void dump(int indent_lvl = 0) const;
+            virtual const char *perl_class() const
+                { return "B::AST::Sort"; }
+
+        protected:
+            bool needs_reverse;
+            bool is_numeric;
+            bool is_inplace;
+            bool is_guaranteed_stable;
+            bool is_integer_sort;
+            Term *cmp_function;
+            std::vector<Term *> arguments;
+            ast_sort_algorithm_type sort_algo;
         };
 
         class Optree : public Term {

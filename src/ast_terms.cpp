@@ -331,6 +331,18 @@ Statement::Statement(OP *p_nextstate, Term *term)
     line = CopLINE(cCOPx(p_nextstate));
 }
 
+Sort::Sort(OP *p_op, Term *cmp_fun, const std::vector<Term *> & args)
+  : Term(p_op, ast_ttype_sort),
+    needs_reverse(false),
+    is_numeric(false),
+    is_inplace(false),
+    is_guaranteed_stable(false),
+    is_integer_sort(false),
+    cmp_function(cmp_fun),
+    arguments(args),
+    sort_algo(ast_sort_merge)
+{}
+
 StatementSequence::StatementSequence()
     : Term(NULL, ast_ttype_statementsequence)
 {}

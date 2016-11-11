@@ -30,6 +30,10 @@
     %xs_type{T_ENUM};
 };
 
+%typemap{ast_sort_algorithm_type}{simple}{
+    %xs_type{T_ENUM};
+};
+
 %typemap{B::AST::Term *}{object}{
     %name{ast_term};
     %xs_type{O_AST};

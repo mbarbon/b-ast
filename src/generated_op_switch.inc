@@ -289,6 +289,7 @@
   || (int)otype == OP_SNETENT \
   || (int)otype == OP_SOCKET \
   || (int)otype == OP_SOCKPAIR \
+  || (int)otype == OP_SORT \
   || (int)otype == OP_SPLICE \
   || (int)otype == OP_SPLIT \
   || (int)otype == OP_SPRINTF \
@@ -622,6 +623,7 @@
   || (int)otype == OP_SNETENT \
   || (int)otype == OP_SOCKET \
   || (int)otype == OP_SOCKPAIR \
+  || (int)otype == OP_SORT \
   || (int)otype == OP_SPLICE \
   || (int)otype == OP_SPLIT \
   || (int)otype == OP_SPRINTF \

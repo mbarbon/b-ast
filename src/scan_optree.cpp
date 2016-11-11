@@ -707,6 +707,59 @@ static PerlAST::AST::Term *ast_build_list_slice(pTHX_ OP *o, OPTreeASTVisitor &v
     return new AST::Binop(o, ast_binop_list_slice, kid1, new AST::List(tmp));
 }
 
+static PerlAST::AST::Sort *ast_build_sort(pTHX_ OP *sort, OPTreeASTVisitor &visitor) {
+    AST::Sort *retval = NULL;
+    assert(sort);
+
+    AST_DEBUG("Building sort AST node\n");
+
+    vector<AST::Term *> kid_terms;
+    if (ast_build_kid_terms(aTHX_ sort, visitor, kid_terms)) {
+        ast_free_term_vector(aTHX_ kid_terms);
+        return NULL;
+    }
+
+    // TODO make in-place sort OP tree structure not blow up the tree walker.
+
+    AST::Term *sort_cb = NULL;
+    bool is_reverse = sort->op_private & OPpSORT_DESCEND;
+    if (sort->op_private & OPpSORT_REVERSE)
+        is_reverse = is_reverse ? false : true;
+
+    vector<AST::Term *> args;
+    bool is_std_numeric = false;
+
+    // If have special case for num/alpha sort without explicit block
+    if (!(sort->op_flags & OPf_STACKED)) {
+        is_std_numeric = sort->op_private & OPpSORT_NUMERIC;
+        args = kid_terms;
+    } else {
+        assert(!kid_terms.empty());
+        sort_cb = kid_terms[0];
+        // FTR, this is what finds the OP* equivalent of kid_terms[0] in pp_sort.
+        // OP *nullop = cLISTOPx(sort)->op_first->op_sibling;       /* pass pushmark */
+        // assert(nullop->op_type == OP_NULL);
+        // nullop->op_next;
+
+        args.reserve(kid_terms.size()-1);
+        for (unsigned int i = 1; i < kid_terms.size(); ++i)
+            args.push_back(kid_terms[i]);
+    }
+    assert(sort_cb);
+
+    retval = new AST::Sort(sort, sort_cb, args);
+    retval->set_reverse_sort(is_reverse);
+    retval->set_std_numeric_sort(is_std_numeric);
+    retval->set_in_place_sort(sort->op_private & OPpSORT_INPLACE);
+    retval->set_std_integer_sort(sort->op_private & OPpSORT_INTEGER);
+    retval->set_guaranteed_stable_sort(sort->op_private & OPpSORT_STABLE);
+    // Merge is default
+    if (sort->op_private & OPpSORT_QSORT)
+        retval->set_sort_algorithm(AST::Sort::ast_sort_quick);
+
+    return retval;
+}
+
 // This handles building SubCall and MethodCall AST nodes
 static PerlAST::AST::Term *ast_build_sub_call(pTHX_ LISTOP *entersub, OPTreeASTVisitor &visitor) {
     PerlAST::AST::Term *retval;
@@ -995,8 +1048,10 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
     }
 
     case OP_NULL: {
+        retval = NULL;
         const unsigned int targ_otype = (unsigned int)o->op_targ;
         MAKE_DEFAULT_KID_VECTOR
+
         if (targ_otype == OP_AELEM) {
             // AELEMFASTified aelem!
             AST_DEBUG("Passing through kid of ex-aelem\n");
@@ -1005,6 +1060,16 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
                 delete kid_terms[1];
         } else if (targ_otype == OP_LIST) {
             retval = new AST::List(kid_terms);
+        } else if (targ_otype == OP_REVERSE
+                   && kid_terms.size() == 1
+                   && kid_terms[0]->get_type() == ast_ttype_sort)
+        {
+            // OP_REVERSE is nulled if it's been sucked into a sort
+            // (and maybe other things? Certainly also in some foreach
+            // special case, which is handled elsewhere, and likely also
+            // for ranges)
+            AST_DEBUG("Identified compiled-out reversal");
+            retval = kid_terms[0];
         } else if (kid_terms.size() == 1) {
             if (o->op_targ == 0) {
                 // attempt to pass through this untyped null-op. FIXME likely WRONG
@@ -1020,6 +1085,7 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
                     retval = kid_terms[0];
                     break;
                 default:
+                    op_dump(o);
                     AST_DEBUG_1("Cannot represent this NULL OP with AST. Emitting OP tree term in AST. (%s)\n", OP_NAME(o));
                     analyze_optree_internal(aTHX_ o, visitor);
                     retval = new AST::Optree(o);
@@ -1192,6 +1258,10 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
             retval = new AST::Listop(o, ast_listop_list2scalar, kid_terms);
         break;
     }
+
+    case OP_SORT:
+        retval = ast_build_sort(aTHX_ o, visitor);
+        break;
 
     case OP_ENTERSUB:
         retval = ast_build_sub_call(aTHX_ cLISTOPo, visitor);

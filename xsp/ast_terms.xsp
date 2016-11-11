@@ -187,3 +187,16 @@ class B::AST::LoopControlStatement : public B::AST::Unop {
     std::vector<B::AST::Term *> get_kids()
         %code{% PERL_UNUSED_VAR(THIS); %};
 };
+
+class B::AST::Sort : public B::AST::Term {
+    bool is_reverse_sort() const;
+    bool is_std_numeric_sort() const;
+    bool is_std_integer_sort() const;
+    bool is_in_place_sort() const;
+    bool is_guaranteed_stable_sort() const;
+
+    int get_sort_algorithm();
+    B::AST::Term *get_cmp_function();
+
+    std::vector<B::AST::Term *> get_arguments() const;
+};

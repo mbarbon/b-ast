@@ -230,6 +230,21 @@ sub json_fields {
     parameters => $_[0]->get_parameters->json_value,
 }
 
+package B::AST::Sort;
+
+sub json_fields {
+    is_reverse_sort           => $_[0]->is_reverse_sort,
+    is_std_numeric_sort       => $_[0]->is_std_numeric_sort,
+    is_std_integer_sort       => $_[0]->is_std_integer_sort,
+    is_in_place_sort          => $_[0]->is_in_place_sort,
+    is_guaranteed_stable_sort => $_[0]->is_guaranteed_stable_sort,
+    sort_algorithm            => $_[0]->get_sort_algorithm,
+    cmp_function              => $_[0]->get_cmp_function ?
+                                     $_[0]->get_cmp_function->json_value :
+                                     undef,
+    arguments                 => [map $_->json_value, $_[0]->get_arguments],
+}
+
 package B::AST::StatementSequence;
 
 sub json_fields {
