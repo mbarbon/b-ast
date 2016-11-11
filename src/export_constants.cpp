@@ -93,8 +93,12 @@ void ast_define_constants(pTHX) {
 
     {
         using namespace PerlAST::AST;
+
         INT_CONST_NAMED(LoopControlStatement::ast_lctl_next, ast_lctl_next);
         INT_CONST_NAMED(LoopControlStatement::ast_lctl_redo, ast_lctl_redo);
         INT_CONST_NAMED(LoopControlStatement::ast_lctl_last, ast_lctl_last);
+
+        INT_CONST_NAMED(Sort::ast_sort_merge, ast_sort_merge);
+        INT_CONST_NAMED(Sort::ast_sort_quick, ast_sort_quick);
     }
 }

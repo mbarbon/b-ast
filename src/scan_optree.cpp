@@ -238,6 +238,7 @@ static void ast_free_term_vector(pTHX_ vector<PerlAST::AST::Term *> &kids) {
         if (*it != NULL)
             delete *it;
     }
+    kids.clear();
 }
 
 
@@ -274,7 +275,24 @@ static int ast_build_kid_terms(pTHX_ OP *o, OPTreeASTVisitor &visitor, vector<AS
 
             AST::Term *kid_term = ast_build(aTHX_ kid, visitor);
 
-            // Handle a few special kid cases
+            // pass-through inplace-sort
+            if (kid_term == NULL &&
+                    kid_terms.size() == 1 &&
+                    kid_terms[0]->get_type() == ast_ttype_list) {
+                // inplace sort
+                AST::List *list = (AST::List *) kid_terms[0];
+
+                if (list->kids.size() == 1 &&
+                        list->kids[0]->get_type() == ast_ttype_sort &&
+                        ((AST::Sort *) list->kids[0])->is_in_place_sort()) {
+                    kid_terms[0] = list->kids[0];
+                    list->kids.pop_back();
+                    delete list;
+                    return 0;
+                }
+            }
+
+            // Handle a few more special kid cases
             if (kid_term == NULL) {
                 // Failed to build sub-AST, free ASTs build thus far before bailing
                 AST_DEBUG("ast_build_kid_terms failed to build sub-AST - unwinding.\n");
@@ -1084,8 +1102,11 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
                     AST_DEBUG("Passing through kid of ex-rv2sv or ex-rv2av or ex-rv2cv\n");
                     retval = kid_terms[0];
                     break;
+                case OP_AASSIGN:
+                    // Skip into ex-aassign for inplace sort
+                    retval = kid_terms[0];
+                    break;
                 default:
-                    op_dump(o);
                     AST_DEBUG_1("Cannot represent this NULL OP with AST. Emitting OP tree term in AST. (%s)\n", OP_NAME(o));
                     analyze_optree_internal(aTHX_ o, visitor);
                     retval = new AST::Optree(o);
@@ -1093,6 +1114,8 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
                     break;
                 }
             }
+        } else if (kid_terms.size() == 0) {
+            return NULL;
         } else {
             AST_DEBUG_1("Cannot represent this NULL OP with AST. Emitting OP tree term in AST. (%s)\n", OP_NAME(o));
             analyze_optree_internal(aTHX_ o, visitor);
