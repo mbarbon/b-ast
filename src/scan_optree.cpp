@@ -997,42 +997,42 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
     case OP_NULL: {
         const unsigned int targ_otype = (unsigned int)o->op_targ;
         MAKE_DEFAULT_KID_VECTOR
-            if (targ_otype == OP_AELEM) {
-                // AELEMFASTified aelem!
-                AST_DEBUG("Passing through kid of ex-aelem\n");
+        if (targ_otype == OP_AELEM) {
+            // AELEMFASTified aelem!
+            AST_DEBUG("Passing through kid of ex-aelem\n");
+            retval = kid_terms[0];
+            if (kid_terms.size() > 1)
+                delete kid_terms[1];
+        } else if (targ_otype == OP_LIST) {
+            retval = new AST::List(kid_terms);
+        } else if (kid_terms.size() == 1) {
+            if (o->op_targ == 0) {
+                // attempt to pass through this untyped null-op. FIXME likely WRONG
+                AST_DEBUG("Passing through kid of OP_NULL\n");
                 retval = kid_terms[0];
-                if (kid_terms.size() > 1)
-                    delete kid_terms[1];
-            } else if (targ_otype == OP_LIST) {
-                retval = new AST::List(kid_terms);
-            } else if (kid_terms.size() == 1) {
-                if (o->op_targ == 0) {
-                    // attempt to pass through this untyped null-op. FIXME likely WRONG
-                    AST_DEBUG("Passing through kid of OP_NULL\n");
-                    retval = kid_terms[0];
-                } else {
-                    switch (targ_otype) {
-                    case OP_RV2AV:
-                    case OP_RV2CV:
-                    case OP_RV2SV:
-                        // Skip into ex-rv2sv for optimized global scalar/array access
-                        AST_DEBUG("Passing through kid of ex-rv2sv or ex-rv2av or ex-rv2cv\n");
-                        retval = kid_terms[0];
-                        break;
-                    default:
-                        AST_DEBUG_1("Cannot represent this NULL OP with AST. Emitting OP tree term in AST. (%s)\n", OP_NAME(o));
-                        analyze_optree_internal(aTHX_ o, visitor);
-                        retval = new AST::Optree(o);
-                        ast_free_term_vector(aTHX_ kid_terms);
-                        break;
-                    }
-                }
             } else {
-                AST_DEBUG_1("Cannot represent this NULL OP with AST. Emitting OP tree term in AST. (%s)\n", OP_NAME(o));
-                analyze_optree_internal(aTHX_ o, visitor);
-                retval = new AST::Optree(o);
-                ast_free_term_vector(aTHX_ kid_terms);
+                switch (targ_otype) {
+                case OP_RV2AV:
+                case OP_RV2CV:
+                case OP_RV2SV:
+                    // Skip into ex-rv2sv for optimized global scalar/array access
+                    AST_DEBUG("Passing through kid of ex-rv2sv or ex-rv2av or ex-rv2cv\n");
+                    retval = kid_terms[0];
+                    break;
+                default:
+                    AST_DEBUG_1("Cannot represent this NULL OP with AST. Emitting OP tree term in AST. (%s)\n", OP_NAME(o));
+                    analyze_optree_internal(aTHX_ o, visitor);
+                    retval = new AST::Optree(o);
+                    ast_free_term_vector(aTHX_ kid_terms);
+                    break;
+                }
             }
+        } else {
+            AST_DEBUG_1("Cannot represent this NULL OP with AST. Emitting OP tree term in AST. (%s)\n", OP_NAME(o));
+            analyze_optree_internal(aTHX_ o, visitor);
+            retval = new AST::Optree(o);
+            ast_free_term_vector(aTHX_ kid_terms);
+        }
         break;
     }
 
