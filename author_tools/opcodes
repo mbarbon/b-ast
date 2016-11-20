@@ -276,9 +276,9 @@ ast_listop_chop,		ast_opc_listop,	chop,		OP_CHOP,	0,	emit,	String
 ast_listop_chomp,	ast_opc_listop,	chomp,		OP_CHOMP,	0,	emit,	String
 ast_listop_vec,		ast_opc_listop,	vec,		OP_VEC,		0,	emit,	UnsignedInteger # FIXME lvalue
 ast_listop_sprintf,	ast_opc_listop,	sprintf,	OP_SPRINTF,	0,	emit,	String
-ast_listop_printf,	ast_opc_listop,	printf,		OP_PRTF,	0,	emit,	Any
-ast_listop_print,	ast_opc_listop,	print,		OP_PRINT,	0,	emit,	Any
-ast_listop_say,		ast_opc_listop,	say,		OP_SAY,		0,	emit,	Any
+ast_listop_printf,	ast_opc_listop,	printf,		OP_PRTF,	OPTIONAL_TERM,	emit,	Any
+ast_listop_print,	ast_opc_listop,	print,		OP_PRINT,	OPTIONAL_TERM,	emit,	Any
+ast_listop_say,		ast_opc_listop,	say,		OP_SAY,		OPTIONAL_TERM,	emit,	Any
 ast_listop_join,		ast_opc_listop,	join,		OP_JOIN,	0,	emit,	String
 ast_listop_read,		ast_opc_listop,	read,		OP_READ,	0,	emit,	Any
 ast_listop_list2scalar,	ast_opc_listop,	list_to_scalar,	OP_LIST,	0,	,	Any
@@ -332,8 +332,8 @@ ast_listop_semget,	ast_opc_listop,	semget(),	OP_SEMGET,	0,	emit,	Any # TODO didn
 ast_listop_semctl,	ast_opc_listop,	semctl(),	OP_SEMCTL,	0,	emit,	Any # TODO didn't look up return values
 ast_listop_setpriority,	ast_opc_listop,	setpriority(),	OP_SETPRIORITY,	0,	emit,	Integer
 ast_listop_kill,		ast_opc_listop,	kill(),		OP_KILL,	0,	emit,	Integer
-ast_listop_system,	ast_opc_listop,	system(),	OP_SYSTEM,	0,	emit,	Integer
-ast_listop_exec,		ast_opc_listop,	exec(),		OP_EXEC,	0,	emit,	Integer
+ast_listop_system,	ast_opc_listop,	system(),	OP_SYSTEM,	OPTIONAL_TERM,	emit,	Integer
+ast_listop_exec,		ast_opc_listop,	exec(),		OP_EXEC,	OPTIONAL_TERM,	emit,	Integer
 ast_listop_hash_slice,	ast_opc_listop,	hash slice,	OP_HSLICE,	0,	emit,	Scalar=Any List=List[Any]
 
 

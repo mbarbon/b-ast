@@ -122,6 +122,17 @@ sub json_fields {
     );
 }
 
+package B::AST::SpecialListop;
+
+sub json_fields {
+    return (
+        context       => $_[0]->context,
+        term          => $_[0]->get_term ? $_[0]->get_term->json_value : undef,
+        terms         => [map $_->json_value, $_[0]->get_kids],
+        op            => $_[0]->get_op_type,
+    );
+}
+
 package B::AST::List;
 
 sub json_fields {

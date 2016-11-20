@@ -53,6 +53,10 @@ class B::AST::Binop : public B::AST::Op {
 class B::AST::Listop : public B::AST::Op {
 };
 
+class B::AST::SpecialListop : public B::AST::Listop {
+    const B::AST::Term *term %get;
+};
+
 class B::AST::Block : public B::AST::Op {
 };
 

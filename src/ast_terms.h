@@ -38,6 +38,7 @@ typedef enum {
     ast_opc_unop,
     ast_opc_binop,
     ast_opc_listop,
+    ast_opc_speciallistop,
     ast_opc_block
 } ast_op_class;
 
@@ -71,6 +72,8 @@ typedef enum {
 #define B_ASTf_HAS_ASSIGNMENT_FORM (1<<2)
 // Indicates that the op may have overloading
 #define B_ASTf_OVERLOAD (1<<3)
+// Indicates that the op may have an optional first term (like print)
+#define B_ASTf_OPTIONAL_TERM (1<<4)
 
 namespace PerlAST {
     namespace AST {
@@ -333,6 +336,18 @@ namespace PerlAST {
                 { return ast_opc_listop; }
             virtual const char *perl_class() const
                 { return "B::AST::Listop"; }
+        };
+
+        class SpecialListop : public Listop {
+        public:
+            SpecialListop(OP *p_op, ast_op_type t, const Term *term, const std::vector<Term *> &children);
+
+            const Term *term;
+
+            ast_op_class op_class() const
+                { return ast_opc_speciallistop; }
+            virtual const char *perl_class() const
+                { return "B::AST::SpecialListop"; }
         };
 
         class Block : public Op {

@@ -163,6 +163,11 @@ Listop::Listop(OP *p_op, ast_op_type t, const std::vector<Term *> &children)
 }
 
 
+SpecialListop::SpecialListop(OP *p_op, ast_op_type t, const Term *trm, const std::vector<Term *> &children)
+    : Listop(p_op, t, children), term(trm)
+{}
+
+
 Block::Block(OP *p_op, Term *statements)
     : Op(p_op, ast_op_scope) {
     kids.resize(1);

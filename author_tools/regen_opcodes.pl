@@ -136,6 +136,8 @@ foreach my $op (@op_defs) {
 
     my $optype = $op->[AST_CLASS] eq 'ast_opc_unop'   ? 'UNOP'
                : $op->[AST_CLASS] eq 'ast_opc_binop'  ? 'BINOP'
+               : ($op->[AST_CLASS] eq 'ast_opc_listop' &&
+                  has_flag($op, 'OPTIONAL_TERM'))     ? 'SPECIAL_LISTOP'
                : $op->[AST_CLASS] eq 'ast_opc_listop' ? 'LISTOP'
                : $op->[AST_CLASS] eq 'ast_opc_baseop' ? 'BASEOP'
                : die "Unrecognized AST class: '$op->[AST_CONST]'!";

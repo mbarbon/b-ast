@@ -57,6 +57,7 @@ statements:
     body:
       context: ast_context_scalar
       op: ast_listop_print
+      term: ~
       terms:
         -
           context: ast_context_scalar
@@ -68,7 +69,7 @@ statements:
           name: b
           sigil: ast_sigil_scalar
           type: Global
-      type: Listop
+      type: SpecialListop
     file: TEST
     line: 1
     type: Statement

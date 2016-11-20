@@ -853,6 +853,23 @@ static PerlAST::AST::Term *ast_build_sub_call(pTHX_ LISTOP *entersub, OPTreeASTV
     return retval;
 }
 
+#define MAKE_DEFAULT_KID_VECTOR                              \
+    vector<AST::Term *> kid_terms;                           \
+    if (ast_build_kid_terms(aTHX_ o, visitor, kid_terms)) {  \
+        ast_free_term_vector(aTHX_ kid_terms);               \
+        return NULL;                                         \
+    }
+
+static AST::SpecialListop *ast_build_special_listop(pTHX_ OP *o, ast_op_type op_type, OPTreeASTVisitor &visitor) {
+    MAKE_DEFAULT_KID_VECTOR;
+    AST::Term *term = NULL;
+    if (o->op_flags & OPf_STACKED) {
+        term = kid_terms.front();
+        kid_terms.erase(kid_terms.begin());
+    }
+    return new AST::SpecialListop(o, op_type, term, kid_terms);
+}
+
 /* Walk OP tree recursively, build ASTs, build subtrees */
 static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
     PerlAST::AST::Term *retval = NULL;
@@ -874,13 +891,6 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
     // Build child list if applicable
     vector<AST::Term *> kid_terms;
 
-
-#define MAKE_DEFAULT_KID_VECTOR                              \
-    vector<AST::Term *> kid_terms;                           \
-    if (ast_build_kid_terms(aTHX_ o, visitor, kid_terms)) {  \
-        ast_free_term_vector(aTHX_ kid_terms);                \
-        return NULL;                                         \
-    }                                                        \
 
 #define EMIT_BASEOP_CODE(perl_op_type, ast_op_type)              \
     case perl_op_type: {                                         \
@@ -960,6 +970,14 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
         MAKE_DEFAULT_KID_VECTOR                             \
         retval = new AST::Listop(o, ast_op_type, kid_terms);\
         break;                                              \
+    }
+
+#define EMIT_SPECIAL_LISTOP_CODE(perl_op_type, ast_op_type)  \
+    case perl_op_type: {                                     \
+        retval = ast_build_special_listop(aTHX_ o, ast_op_type, visitor); \
+        if (retval == NULL)                                  \
+            return retval;                                   \
+        break;                                               \
     }
 
     switch (otype) {
