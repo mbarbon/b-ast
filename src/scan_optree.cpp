@@ -1115,6 +1115,7 @@ static PerlAST::AST::Term *ast_build(pTHX_ OP *o, OPTreeASTVisitor &visitor) {
                 switch (targ_otype) {
                 case OP_RV2AV:
                 case OP_RV2CV:
+                case OP_RV2GV:
                 case OP_RV2SV:
                     // Skip into ex-rv2sv for optimized global scalar/array access
                     AST_DEBUG("Passing through kid of ex-rv2sv or ex-rv2av or ex-rv2cv\n");
